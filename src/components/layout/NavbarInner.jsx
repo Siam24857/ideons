@@ -157,7 +157,7 @@ function NavbarInnerContent({ categories = [] }) {
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search products…"
                   aria-label="Search products"
-                  className="w-full rounded-lg border border-[#FFC928] bg-white py-2.5 pl-9 pr-3 text-sm text-[#123B69] outline-none transition placeholder:text-[#123B69]/50 focus:border-[#FFD84D] focus:bg-white sm:w-80"
+                  className="w-full rounded-lg border border-[#FFC928] bg-white py-2.5 pl-9 pr-3 text-sm text-[#123B69] outline-none transition placeholder:text-[#123B69]/50 focus:border-[#FFD84D] focus:bg-white sm:w-80 caret-[#FFC928]"
                 />
                 <button
                   type="submit"
@@ -362,7 +362,7 @@ function NavbarInnerContent({ categories = [] }) {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search products…"
               aria-label="Search products"
-              className="w-full rounded-lg border border-[#EAEDED] bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#FFC92D]"
+              className="w-full rounded-lg border border-[#EAEDED] bg-white py-2.5 pl-9 pr-3 text-sm text-[#123B69] outline-none focus:border-[#FFC928] caret-[#FFC928]"
             />
           </div>
         </form>
