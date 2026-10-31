@@ -167,11 +167,11 @@ async function resolveLineItem(input) {
 
 /* ------------------------------- totals ---------------------------------- */
 
-export function calculateTotals(settings, lineItems, division, orderDiscount = 0) {
+export function calculateTotals(settings, lineItems, division, orderDiscount = 0, district = "") {
   const subtotal = fromMinor(lineItems.reduce((acc, i) => acc + toMinor(i.lineSubtotal), 0));
   const itemsTotal = fromMinor(lineItems.reduce((acc, i) => acc + toMinor(i.lineTotal), 0));
   const itemsDiscount = fromMinor(toMinor(subtotal) - toMinor(itemsTotal));
-  const deliveryCharge = computeDeliveryCharge(settings, itemsTotal, division);
+  const deliveryCharge = computeDeliveryCharge(settings, itemsTotal, division, district);
   const extraDiscount = fromMinor(Math.max(0, toMinor(orderDiscount)));
   const total = fromMinor(
     toMinor(itemsTotal) + toMinor(deliveryCharge) - Math.min(toMinor(itemsTotal), toMinor(extraDiscount))
@@ -267,7 +267,7 @@ export async function createOrder({
   });
 
   /* 4. Totals computed from server-side prices. */
-  const totals = calculateTotals(storeSettings, lineItems, shippingAddress.division);
+  const totals = calculateTotals(storeSettings, lineItems, shippingAddress.division, 0, shippingAddress.district);
 
   /* 5. Reserve stock atomically (with rollback on partial failure). */
   const reservations = await reserveStock(

@@ -23,13 +23,18 @@ export default function SignInPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log("Sign In Data:", formData);
     const { data, error } = await authClient.signIn.email({
-    email: formData.email, // required, The email address of the user.
-    password: formData.password, // required, The password of the user. It should be at least 8 characters long and max 128 by default.
-    rememberMe: true, // If false, the user will be signed out when the browser is closed. (optional) (default: true)
-    callbackURL: "http://localhost:3000", // An optional URL to redirect to after the user signs in. (optional)
-});
+      email: formData.email,
+      password: formData.password,
+      rememberMe: true,
+      callbackURL: "http://localhost:3000",
+    });
+
+    if (error) {
+      alert(error.message || "Sign in failed. Please check your credentials.");
+      return;
+    }
+    window.location.href = "/";
   };
 
   return (

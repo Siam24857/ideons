@@ -17,7 +17,6 @@ import NewsletterForm from "@/components/home/NewsletterForm";
 import HeroCarousel from "@/components/home/HeroCarousel";
 import ShoppingCards from "@/components/home/ShoppingCards";
 import Container from "@/components/layout/Container";
-import Footer from "@/components/layout/Footer";
 import { STORE, DEFAULT_CATEGORIES } from "@/lib/constants";
 import { getHomeSections } from "@/lib/products";
 import { getSettings } from "@/lib/settings";
@@ -314,8 +313,6 @@ export default async function HomePage({ searchParams }) {
           </div>
         </Container>
       </section>
-
-      <Footer />
     </div>
   );
 }

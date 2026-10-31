@@ -20,6 +20,7 @@ export const GET = handleApi(async (request) => {
 
   const addressId = qp(request, "addressId");
   let division = qp(request, "division");
+  let district = qp(request, "district");
   let shippingSnapshot = null;
 
   if (addressId) {
@@ -30,6 +31,7 @@ export const GET = handleApi(async (request) => {
     });
     if (saved) {
       division = saved.division;
+      district = saved.district;
       shippingSnapshot = {
         fullName: saved.fullName,
         phone: saved.phone,
@@ -53,7 +55,7 @@ export const GET = handleApi(async (request) => {
     quantity: i.quantity,
   }));
 
-  const totals = calculateTotals(settings, lineItems, division, 0);
+  const totals = calculateTotals(settings, lineItems, division, 0, district);
 
   return ok({
     cart,

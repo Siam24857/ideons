@@ -156,6 +156,27 @@ export default function CheckoutPage() {
   const usingNewAddress = showNewAddressForm && !selectedAddressId;
   const activeAddress = usingNewAddress ? newAddress : selectedAddress;
 
+  // Live delivery charge based on the active division/district so the summary
+  // reflects Dhaka (70 BDT) vs outside (130 BDT) as the user changes inputs.
+  const activeDivision = usingNewAddress
+    ? formData.division
+    : (selectedAddress?.division || division || "");
+  const activeDistrict = usingNewAddress
+    ? formData.district
+    : (selectedAddress?.district || "");
+  const freeOver = Number(settings?.freeDeliveryOver) || 0;
+  const itemsTotalNum = Number(totals?.itemsTotal) || 0;
+  const freeApplied = freeOver > 0 && itemsTotalNum * 100 >= freeOver * 100;
+  const isDhaka =
+    String(activeDivision || "").trim().toLowerCase() === "dhaka" ||
+    String(activeDistrict || "").trim().toLowerCase() === "dhaka";
+  const displayDelivery = freeApplied
+    ? 0
+    : isDhaka
+      ? Number(settings?.deliveryChargeInsideDhaka) || 70
+      : Number(settings?.deliveryChargeOutsideDhaka) || 130;
+  const displayTotal = itemsTotalNum + displayDelivery;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
@@ -521,13 +542,13 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-navy-500">Delivery Charge</span>
-                <span className="font-medium text-navy-900">{formatMoney(totals.deliveryCharge, currencySymbol)}</span>
+                <span className="font-medium text-navy-900">{formatMoney(displayDelivery, currencySymbol)}</span>
               </div>
             </div>
 
             <div className="mt-6 flex items-center justify-between text-xl font-bold">
               <span className="text-navy-950">Total</span>
-              <span className="text-blue-600">{formatMoney(totals.total, currencySymbol)}</span>
+              <span className="text-blue-600">{formatMoney(displayTotal, currencySymbol)}</span>
             </div>
 
             <div className="mt-6 p-4 rounded-lg bg-navy-50 text-xs text-navy-500">

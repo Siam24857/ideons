@@ -29,10 +29,12 @@ export async function updateSettings(patch, { adminId } = {}) {
  * Delivery charge for an order going to a given division.
  * Free delivery is applied when the order subtotal reaches the threshold.
  */
-export function computeDeliveryCharge(settings, subtotal, division) {
+export function computeDeliveryCharge(settings, subtotal, division, district) {
   const freeOver = Number(settings.freeDeliveryOver) || 0;
   if (freeOver > 0 && toMinorSafe(subtotal) >= toMinorSafe(freeOver)) return 0;
-  const inside = String(division || "").trim().toLowerCase() === "dhaka";
+  const inside =
+    String(division || "").trim().toLowerCase() === "dhaka" ||
+    String(district || "").trim().toLowerCase() === "dhaka";
   return inside
     ? Number(settings.deliveryChargeInsideDhaka) || 0
     : Number(settings.deliveryChargeOutsideDhaka) || 0;

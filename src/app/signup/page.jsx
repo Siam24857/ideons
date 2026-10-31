@@ -26,17 +26,23 @@ export default function SignUpPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log("Sign Up Data:", formData);
-    const { data, error } = await authClient.signUp.email({
-    name: formData.name,
-    email: formData.email,
-    password: formData.password,
-    callbackURL: "/signin",
-
-    });
-    if(data.token){
-        redirect("/signin")
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match.");
+      return;
     }
+
+    const { data, error } = await authClient.signUp.email({
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      callbackURL: "/signin",
+    });
+
+    if (error) {
+      alert(error.message || "Sign up failed. Please try again.");
+      return;
+    }
+    window.location.href = "/signin";
   };
 
   return (
