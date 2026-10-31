@@ -21,8 +21,12 @@ function buildAuth() {
   const db = process.env.MONGODB_DB || "Marcateplace2";
 
   return betterAuth({
-    baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000",
+    baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000",
     secret: process.env.BETTER_AUTH_SECRET,
+    trustedOrigins: [
+      "http://localhost:3000",
+      "https://ideons.vercel.app",
+    ],
     database: mongodbAdapter(client.db(db), { client }),
     emailAndPassword: {
       enabled: true,

@@ -27,7 +27,7 @@ export default function SignInPage() {
       email: formData.email,
       password: formData.password,
       rememberMe: true,
-      callbackURL: "http://localhost:3000",
+      callbackURL: "/",
     });
 
     if (error) {
