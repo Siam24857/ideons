@@ -228,7 +228,7 @@ const Cartpage = ({ cartdata }) => {
                 <div className="flex gap-4">
 
                   {/* Product Image */}
-                  <div className="h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                  <div className="h-28 w-28 shrnavy-0 overflow-hidden rounded-xl bg-gray-100">
 
                     {item.productImage ||
                     item.image ? (
@@ -425,3 +425,4 @@ const Cartpage = ({ cartdata }) => {
 
 export default Cartpage;
  
+

@@ -157,7 +157,7 @@ export default function Footer() {
               <li className="flex gap-3">
                 <FiMail
                   size={18}
-                  className="mt-0.5 shrink-0 text-purple-400"
+                  className="mt-0.5 shrnavy-0 text-purple-400"
                 />
                 <span>support@markethub.com</span>
               </li>
@@ -165,7 +165,7 @@ export default function Footer() {
               <li className="flex gap-3">
                 <FiPhone
                   size={18}
-                  className="mt-0.5 shrink-0 text-purple-400"
+                  className="mt-0.5 shrnavy-0 text-purple-400"
                 />
                 <span>+880 1234-567890</span>
               </li>
@@ -173,7 +173,7 @@ export default function Footer() {
               <li className="flex gap-3">
                 <FiMapPin
                   size={18}
-                  className="mt-0.5 shrink-0 text-purple-400"
+                  className="mt-0.5 shrnavy-0 text-purple-400"
                 />
                 <span>Dhaka, Bangladesh</span>
               </li>

@@ -3,6 +3,7 @@
 import { Addproducttocart } from "@/lib/Action/addcart";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+import { useStore } from "@/components/providers/StoreProvider";
 import { useState } from "react";
 import {
   FiArrowLeft,
@@ -21,6 +22,7 @@ export default function ProductDetails({ productDetails }) {
 
   // ✅ Hook top-level এ call করা হলো
   const { data: session, isPending } = authClient.useSession();
+  const { addToCart } = useStore();
   const userdata = session?.user;
 
   const [quantity, setQuantity] = useState(1);
@@ -108,7 +110,25 @@ export default function ProductDetails({ productDetails }) {
   };
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <>
+      <style jsx>{`
+        @keyframes buy-now-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes buy-now-pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+        .buy-now-fire {
+          animation: buy-now-bounce 1s ease-in-out infinite;
+        }
+        .buy-now-glow {
+          animation: buy-now-pulse 2s ease-in-out infinite;
+        }
+      `}</style>
+
+      <main className="min-h-screen bg-gray-100">
       {/* Back */}
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         <Link
@@ -275,17 +295,42 @@ export default function ProductDetails({ productDetails }) {
               <button
                 onClick={handleAddToCart}
                 disabled={adding || product.stock <= 0}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
               >
                 <FiShoppingCart />
                 {adding ? "Adding..." : "Add to Cart"}
               </button>
 
               <button
-                onClick={() => console.log("Buy Now:", product)}
-                className="flex-1 rounded-lg border border-purple-600 px-5 py-3 font-semibold text-purple-600 hover:bg-purple-50"
+                onClick={async () => {
+                  if (!userdata) {
+                    alert("Please login first to buy now.");
+                    return;
+                  }
+                  if (product.stock <= 0) {
+                    alert("This product is out of stock.");
+                    return;
+                  }
+                  try {
+                    await addToCart({
+                      productId: product._id,
+                      quantity: quantity,
+                    });
+                    window.location.href = "/checkout";
+                  } catch (err) {
+                    alert("Failed to add product to cart. Please try again.");
+                  }
+                }}
+                className="flex-1 relative rounded-lg border border-rose-500 px-5 py-3 font-semibold text-rose-600 bg-rose-50 overflow-hidden transition-all hover:scale-105 group"
+                style={{ boxShadow: "0 0 20px rgba(239, 68, 68, 0.4)" }}
               >
-                Buy Now
+                <div className="absolute inset-0 -z-10 bg-gradient-to-r from-rose-400 via-rose-600 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute -top-3 -left-3 w-6 h-6 bg-rose-400 rounded-full opacity-0 group-hover:opacity-100 buy-now-glow transition-all duration-300" />
+                <div className="absolute -top-3 -right-3 w-4 h-4 bg-orange-400 rounded-full opacity-0 group-hover:opacity-100 buy-now-glow transition-all duration-300" />
+                <div className="flex items-center gap-2">
+                  <span className="buy-now-fire">🔥</span>
+                  Buy Now
+                </div>
               </button>
             </div>
 
@@ -478,5 +523,6 @@ export default function ProductDetails({ productDetails }) {
         </div>
       </section>
     </main>
+    </>
   );
 }

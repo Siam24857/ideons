@@ -35,7 +35,7 @@ export default function SignUpPage() {
 
     });
     if(data.token){
-        redirect("/Singin")
+        redirect("/signin")
     }
   };
 
