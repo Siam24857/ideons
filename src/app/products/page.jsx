@@ -127,7 +127,7 @@ function ProductsPageContent() {
 
   useEffect(() => {
     fetchProducts();
-  }, [state, fetchProducts]);
+  }, [state]);
 
   useEffect(() => {
     const next = initPage();
