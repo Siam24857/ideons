@@ -51,7 +51,7 @@ export default async function ProductDetailsPage({ params }) {
       </nav>
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* Product Images */}
           <div className="space-y-4">
             <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-navy-50 shadow-sm">
@@ -164,6 +164,48 @@ export default async function ProductDetailsPage({ params }) {
             />
           </div>
         </div>
+
+         {/* Reviews */}
+        {product.reviews && product.reviews.length > 0 && (
+          <section className="mt-12 border-t border-navy-100 pt-8">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <h2 className="mb-6 text-xl font-bold text-navy-950">
+                Customer Reviews ({product.reviews.length})
+              </h2>
+              <div className="space-y-6">
+                {product.reviews.map((review, index) => (
+                  <div key={index} className="border-b border-navy-100 pb-6 last:border-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600">
+                          {(review.userName || "U")?.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-navy-900">
+                            {review.userName || "Verified Customer"}
+                          </h3>
+                          <p className="text-xs text-navy-400">
+                            {review.date
+                              ? new Date(review.date).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+                              : "Recently"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex text-yellow-500">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span key={star}>{star <= (review.rating || 0) ? "★" : "☆"}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-navy-600 whitespace-pre-line">
+                      {review.comment || "No comment provided."}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (

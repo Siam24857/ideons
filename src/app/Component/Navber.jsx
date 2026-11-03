@@ -35,8 +35,8 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b bg-white">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
-        {/* Logo */}
-        <Link
+        {/* Logo   */}
+         <Link
           href="/"
           className="flex items-center gap-2 text-xl font-bold text-purple-600"
         >

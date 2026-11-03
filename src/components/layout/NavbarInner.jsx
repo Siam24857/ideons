@@ -140,15 +140,11 @@ function NavbarInnerContent({ categories = [] }) {
           <div className="flex h-16 items-center gap-4">
             {/* Logo */}
             <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="IDeons home">
-              <img
-                src="https://i.postimg.cc/XJXVqLXB/Black-and-Gold-Elegant-Luxury-Flower-Jewelry-Logo.png"
-                alt="IDeons logo"
-                className="h-9 w-auto"
-              />
+              <span className="text-2xl font-bold tracking-wide text-[#FFC928]">IDEONS</span>
             </Link>
 
             {/* Search Bar */}
-            <form onSubmit={submitSearch} className="relative flex-1 md:block" role="search">
+            <form onSubmit={submitSearch} className="relative hidden flex-1 md:block" role="search">
               <div className="relative mx-auto max-w-xl">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#FFC928]" />
                 <input

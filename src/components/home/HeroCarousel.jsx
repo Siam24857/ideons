@@ -168,7 +168,7 @@ export default function HeroCarousel({
                 </div>
 
                 {/* Right: Product Image */}
-                <div className="relative h-[320px] w-[400px] rounded-xl overflow-hidden shadow-2xl border border-[#EAEDED]">
+                <div className="relative h-[320px] w-full max-w-[400px] rounded-xl overflow-hidden shadow-2xl border border-[#EAEDED]">
                   {featuredProduct.images?.[0] ? (
                     <img
                       src={featuredProduct.images[0]}
@@ -231,7 +231,7 @@ export default function HeroCarousel({
 
                     {/* Right: Product Image */}
                     <div className="hidden lg:block flex-1">
-                      <div className="relative h-[280px] w-[360px] rounded-xl overflow-hidden shadow-2xl border border-[#EAEDED]/50">
+                      <div className="relative h-[280px] w-full max-w-[360px] rounded-xl overflow-hidden shadow-2xl border border-[#EAEDED]/50">
                         <img
                           src={slide.image}
                           alt={slide.title}

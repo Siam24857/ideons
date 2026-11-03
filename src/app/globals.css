@@ -66,7 +66,26 @@ body {
   }
 }
 
-/* Hide number input spinners (quantity pickers use custom buttons). */
+/* Responsive safety: prevent horizontal overflow and ensure media fits. */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+html, body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+main, section, article, aside, header, footer, nav {
+  min-width: 0;
+}
+/* Long words/URLs wrap instead of overflowing. */
+p, li, span, h1, h2, h3, h4, h5, h6, a, button, td, th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;

@@ -4,7 +4,7 @@ import { Addproducttocart } from "@/lib/Action/addcart";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { useStore } from "@/components/providers/StoreProvider";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   FiArrowLeft,
   FiHeart,
@@ -18,7 +18,7 @@ import {
 } from "react-icons/fi";
 
 export default function ProductDetails({ productDetails }) {
-  const product = productDetails;
+  const product = productDetails?.product ?? productDetails;
 
   // ✅ Hook top-level এ call করা হলো
   const { data: session, isPending } = authClient.useSession();
@@ -26,16 +26,46 @@ export default function ProductDetails({ productDetails }) {
   const userdata = session?.user;
 
   const [quantity, setQuantity] = useState(1);
-  const [selectedImage, setSelectedImage] = useState(
-    product?.images?.[0]
-  );
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const touchStartX = useRef(null);
+  const [reviewFilter, setReviewFilter] = useState(0);
+  const [reviewSort, setReviewSort] = useState("newest");
   const [adding, setAdding] = useState(false);
-
+  const [visibleCount, setVisibleCount] = useState(5);
   const [reviewData, setReviewData] = useState({
     name: "",
     rating: 5,
+    title: "",
     comment: "",
   });
+
+  const images = Array.isArray(product?.images) && product.images.length > 0
+    ? product.images
+    : (product?.image ? [product.image] : []);
+
+  const allReviews = Array.isArray(product?.reviews) ? product.reviews : [];
+
+  // Rating distribution
+  const ratingCounts = [5, 4, 3, 2, 1].map((star) => ({
+    star,
+    count: allReviews.filter((r) => Number(r.rating) === star).length,
+  }));
+  const totalReviews = allReviews.length;
+  const avgRating = totalReviews
+    ? (allReviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / totalReviews).toFixed(1)
+    : (product.rating || 0);
+
+  // Filter + sort
+  const filteredReviews = allReviews
+    .filter((r) => reviewFilter === 0 || Number(r.rating) === reviewFilter)
+    .sort((a, b) => {
+      if (reviewSort === "highest") return (Number(b.rating) || 0) - (Number(a.rating) || 0);
+      if (reviewSort === "lowest") return (Number(a.rating) || 0) - (Number(b.rating) || 0);
+      // newest: by date desc
+      return new Date(b.date || 0) - new Date(a.date || 0);
+    });
+  const visibleReviews = filteredReviews.slice(0, visibleCount);
 
   if (!product) {
     return (
@@ -47,19 +77,36 @@ export default function ProductDetails({ productDetails }) {
     );
   }
 
-  const handleReviewSubmit = (e) => {
+  const handleReviewSubmit = async (e) => {
     e.preventDefault();
-
-    console.log("New Review:", {
-      productId: product._id,
-      ...reviewData,
-    });
-
-    setReviewData({
-      name: "",
-      rating: 5,
-      comment: "",
-    });
+    if (!userdata) {
+      alert("Please login to write a review.");
+      return;
+    }
+    if (!reviewData.comment.trim()) {
+      alert("Please write a review comment.");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/products/${product._id}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rating: reviewData.rating,
+          title: reviewData.title || "",
+          comment: reviewData.comment,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data?.message || "Failed to submit review.");
+        return;
+      }
+      alert("Review submitted successfully!");
+      setReviewData({ name: "", rating: 5, title: "", comment: "" });
+    } catch (err) {
+      alert("Something went wrong. Please try again.");
+    }
   };
 
   const handleAddToCart = async () => {
@@ -143,49 +190,129 @@ export default function ProductDetails({ productDetails }) {
       {/* Product Details */}
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid gap-8 rounded-2xl bg-white p-5 shadow-sm lg:grid-cols-2 lg:p-8">
-          {/* Images */}
-          <div>
-            <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
-              <img
-                src={selectedImage || product.images?.[0]}
-                alt={product.title}
-                className="h-full w-full object-cover"
-              />
+           {/* Images */}
+           <div>
+             <div
+               className="relative aspect-square overflow-hidden rounded-xl bg-gray-100 cursor-zoom-in"
+               onClick={() => images.length > 0 && setZoomOpen(true)}
+               onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+               onTouchEnd={(e) => {
+                 if (touchStartX.current === null) return;
+                 const dx = e.changedTouches[0].clientX - touchStartX.current;
+                 if (dx > 50) setCurrentImageIndex((i) => Math.max(0, i - 1));
+                 else if (dx < -50) setCurrentImageIndex((i) => Math.min(images.length - 1, i + 1));
+                 touchStartX.current = null;
+               }}
+             >
+               {images.length > 0 ? (
+                 <img
+                   src={images[currentImageIndex]}
+                   alt={product.title}
+                   className="h-full w-full object-contain"
+                   onError={(e) => { e.currentTarget.src = "https://via.placeholder.com/600x600?text=No+Image"; }}
+                 />
+               ) : (
+                 <div className="flex h-full w-full items-center justify-center text-gray-400">No image</div>
+               )}
 
-              {product.badge && (
-                <span className="absolute left-4 top-4 rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">
-                  {product.badge}
-                </span>
-              )}
+               {product.badge && (
+                 <span className="absolute left-4 top-4 rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">
+                   {product.badge}
+                 </span>
+               )}
 
-              <button
-                onClick={() => console.log("Wishlist:", product)}
-                className="absolute right-4 top-4 rounded-full bg-white p-3 shadow"
-              >
-                <FiHeart size={20} />
-              </button>
-            </div>
+               <button
+                 onClick={(e) => { e.stopPropagation(); console.log("Wishlist:", product); }}
+                 className="absolute right-4 top-4 rounded-full bg-white p-3 shadow"
+               >
+                 <FiHeart size={20} />
+               </button>
 
-            <div className="mt-4 flex gap-3">
-              {product.images?.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(image)}
-                  className={`h-20 w-20 overflow-hidden rounded-lg border-2 ${
-                    selectedImage === image
-                      ? "border-purple-600"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <img
-                    src={image}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
+               {images.length > 1 && (
+                 <>
+                   <button
+                     onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((i) => Math.max(0, i - 1)); }}
+                     className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white"
+                     aria-label="Previous image"
+                   >
+                     ‹
+                   </button>
+                   <button
+                     onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((i) => Math.min(images.length - 1, i + 1)); }}
+                     className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white"
+                     aria-label="Next image"
+                   >
+                     ›
+                   </button>
+                   <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-1 text-xs text-white">
+                     {currentImageIndex + 1}/{images.length}
+                   </span>
+                 </>
+               )}
+             </div>
+
+             {images.length > 1 && (
+               <div className="mt-4 flex gap-3 overflow-x-auto">
+                 {images.map((image, index) => (
+                   <button
+                     key={index}
+                     onClick={() => setCurrentImageIndex(index)}
+                     className={`h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border-2 ${
+                       currentImageIndex === index
+                         ? "border-purple-600"
+                         : "border-gray-200"
+                     }`}
+                   >
+                     <img
+                       src={image}
+                       alt=""
+                       className="h-full w-full object-cover"
+                       onError={(e) => { e.currentTarget.style.display = "none"; }}
+                     />
+                   </button>
+                 ))}
+               </div>
+             )}
+           </div>
+
+           {/* Zoom modal */}
+           {zoomOpen && (
+             <div
+               className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+               onClick={() => setZoomOpen(false)}
+             >
+               <button
+                 onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((i) => Math.max(0, i - 1)); }}
+                 className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/20 p-3 text-white hover:bg-white/40"
+                 aria-label="Previous"
+               >
+                 ‹
+               </button>
+               <img
+                 src={images[currentImageIndex]}
+                 alt={product.title}
+                 className="max-h-full max-w-full object-contain"
+                 onClick={(e) => e.stopPropagation()}
+               />
+               <button
+                 onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((i) => Math.min(images.length - 1, i + 1)); }}
+                 className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/20 p-3 text-white hover:bg-white/40"
+                 aria-label="Next"
+               >
+                 ›
+               </button>
+               <button
+                 onClick={() => setZoomOpen(false)}
+                 className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/40"
+                 aria-label="Close"
+               >
+                 ✕
+               </button>
+               <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-sm text-white">
+                 {currentImageIndex + 1}/{images.length}
+               </span>
+             </div>
+           )}
 
           {/* Information */}
           <div>
@@ -389,7 +516,7 @@ export default function ProductDetails({ productDetails }) {
             <div className="mt-6 flex items-center gap-5 rounded-xl bg-gray-50 p-5">
               <div>
                 <p className="text-4xl font-bold text-gray-900">
-                  {product.rating}
+                  {avgRating}
                 </p>
 
                 <div className="mt-1 flex text-yellow-500">
@@ -398,7 +525,7 @@ export default function ProductDetails({ productDetails }) {
                       key={star}
                       size={16}
                       fill={
-                        star <= Math.round(product.rating)
+                        star <= Math.round(Number(avgRating))
                           ? "currentColor"
                           : "none"
                       }
@@ -407,26 +534,70 @@ export default function ProductDetails({ productDetails }) {
                 </div>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  {product.reviewsCount ?? product.reviews?.length ?? 0} reviews
+                  {totalReviews} reviews
                 </p>
+              </div>
+
+              {/* Rating distribution */}
+              <div className="flex-1 space-y-1">
+                {ratingCounts.map(({ star, count }) => (
+                  <div key={star} className="flex items-center gap-2 text-xs">
+                    <span className="w-6 text-gray-600">{star}★</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className="h-full bg-yellow-400"
+                        style={{ width: totalReviews ? `${(count / totalReviews) * 100}%` : "0%" }}
+                      />
+                    </div>
+                    <span className="w-8 text-right text-gray-500">{count}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {product.reviews?.length ? (
-              product.reviews.map((review, index) => (
-                <div key={review.id ?? index} className="py-6">
+            {/* Filters & Sort */}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {[0, 5, 4, 3, 2, 1].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => { setReviewFilter(star); setVisibleCount(5); }}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    reviewFilter === star
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {star === 0 ? "All" : `${star} Star`}
+                </button>
+              ))}
+              <select
+                value={reviewSort}
+                onChange={(e) => setReviewSort(e.target.value)}
+                className="ml-auto rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700"
+              >
+                <option value="newest">Newest First</option>
+                <option value="highest">Highest Rating</option>
+                <option value="lowest">Lowest Rating</option>
+              </select>
+            </div>
+
+            {visibleReviews.length ? (
+              visibleReviews.map((review, index) => (
+                <div key={index} className="py-6 border-b border-gray-100 last:border-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-sm font-bold text-purple-600">
-                        {(review.userName ?? review.name ?? "U")?.charAt(0)}
+                        {(review.userName ?? "U")?.charAt(0)}
                       </div>
 
                       <div>
                         <h3 className="font-semibold">
-                          {review.userName ?? review.name ?? "Anonymous"}
+                          {review.userName || "Verified Customer"}
                         </h3>
                         <p className="text-xs text-gray-400">
-                          {review.date ?? "Recently"}
+                          {review.date
+                            ? new Date(review.date).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+                            : "Recently"}
                         </p>
                       </div>
                     </div>
@@ -437,15 +608,15 @@ export default function ProductDetails({ productDetails }) {
                           key={star}
                           size={14}
                           fill={
-                            star <= review.rating ? "currentColor" : "none"
+                            star <= (review.rating || 0) ? "currentColor" : "none"
                           }
                         />
                       ))}
                     </div>
                   </div>
 
-                  <p className="mt-4 text-sm leading-6 text-gray-600">
-                    {review.comment}
+                  <p className="mt-4 text-sm leading-6 text-gray-600 whitespace-pre-line">
+                    {review.comment || "No comment provided."}
                   </p>
                 </div>
               ))
@@ -453,6 +624,15 @@ export default function ProductDetails({ productDetails }) {
               <p className="py-6 text-sm text-gray-500">
                 No reviews yet. Be the first to review this product!
               </p>
+            )}
+
+            {visibleCount < filteredReviews.length && (
+              <button
+                onClick={() => setVisibleCount((v) => v + 5)}
+                className="mt-4 w-full rounded-lg border border-purple-600 py-2 text-sm font-semibold text-purple-600 hover:bg-purple-50"
+              >
+                Load More Reviews ({filteredReviews.length - visibleCount} more)
+              </button>
             )}
           </div>
 
