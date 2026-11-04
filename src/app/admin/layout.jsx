@@ -24,8 +24,35 @@ export default async function AdminLayout({ children }) {
     );
   }
   return (
-    <div className="flex gap-0 bg-white min-h-screen">
-      <aside className="w-64 border-r border-navy-100 bg-white shrnavy-0">
+    <div className="flex min-h-screen flex-col bg-white md:flex-row">
+      {/* Mobile top nav */}
+      <div className="border-b border-navy-100 bg-white p-3 md:hidden">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-lg font-black text-navy-950">
+            I
+          </span>
+          <span className="text-lg font-extrabold tracking-tight text-navy-950">IDeons</span>
+        </div>
+        <nav className="mt-2 flex gap-1 overflow-x-auto pb-1">
+          {[
+            { name: "Overview", href: "/admin" },
+            { name: "Orders", href: "/admin/orders" },
+            { name: "Customers", href: "/admin/users" },
+            { name: "Products", href: "/admin/products" },
+            { name: "Settings", href: "/admin/settings" },
+          ].map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-navy-700 hover:bg-navy-50"
+            >
+              {link.name}
+            </a>
+          ))}
+        </nav>
+      </div>
+      {/* Desktop sidebar */}
+      <aside className="hidden w-64 shrink-0 border-r border-navy-100 bg-white md:block">
         <div className="p-6">
           <a href="/" className="flex items-center gap-2 mb-8">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-lg font-black text-navy-950">
@@ -63,7 +90,7 @@ export default async function AdminLayout({ children }) {
           </nav>
         </div>
       </aside>
-      <main className="flex-1 bg-navy-50 pb-12">{children}</main>
+      <main className="flex-1 bg-navy-50 pb-12 min-w-0">{children}</main>
     </div>
   );
 }

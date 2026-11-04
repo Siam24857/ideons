@@ -30,11 +30,6 @@ export default async function Footer() {
           {/* Brand */}
           <div>
           <Link href="/" className="flex items-center gap-2">
-            <img
-              src="https://i.postimg.cc/XJXVqLXB/Black-and-Gold-Elegant-Luxury-Flower-Jewelry-Logo.png"
-              alt="IDeons logo"
-              className="h-9 w-auto"
-            />
             <span>
               <span className="block text-lg font-extrabold text-white">IDeons</span>
               <span className="block text-[10px] uppercase tracking-[0.14em] text-ink-400">

@@ -42,8 +42,36 @@ export default function AccountLayout({ children }) {
   };
 
   return (
-    <div className="flex gap-0 bg-white min-h-screen">
-      <aside className="w-64 border-r border-navy-100 bg-white shrnavy-0">
+    <div className="flex min-h-screen flex-col bg-white md:flex-row">
+      {/* Mobile top nav */}
+      <div className="border-b border-navy-100 bg-white p-3 md:hidden">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-lg font-black text-navy-950">
+            I
+          </span>
+          <span className="text-lg font-extrabold tracking-tight text-navy-950">IDeons</span>
+        </div>
+        <nav className="flex gap-1 overflow-x-auto pb-1">
+          {links.map((link) => {
+            const Icon = link.icon;
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  active ? "bg-blue-50 text-blue-600" : "text-navy-700 hover:bg-navy-50"
+                }`}
+              >
+                <Icon size={14} />
+                {link.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+      {/* Desktop sidebar */}
+      <aside className="hidden w-64 shrink-0 border-r border-navy-100 bg-white md:block">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-2 mb-8">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-lg font-black text-navy-950">
@@ -83,7 +111,7 @@ export default function AccountLayout({ children }) {
           </div>
         </div>
       </aside>
-      <main className="flex-1 bg-navy-50 pb-12">{children}</main>
+      <main className="flex-1 bg-navy-50 pb-12 min-w-0">{children}</main>
     </div>
   );
 }
