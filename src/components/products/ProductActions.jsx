@@ -72,12 +72,12 @@ const inStock = product.inStock ?? (product.stock > 0);
         </Button>
         <LinkButton
           href="/checkout"
-          variant="outlineDark"
+          // variant="outlineDark"
           size="lg"
           disabled={!inStock}
           className="w-full sm:w-auto"
         >
-          <CreditCard className="h-4 w-4" />
+          <CreditCard className="h-4 w-4 " /> 
           Buy Now
         </LinkButton>
       </div>
