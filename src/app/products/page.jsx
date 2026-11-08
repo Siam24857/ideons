@@ -45,6 +45,7 @@ function ProductsPageContent() {
   };
 
   const [state, setState] = useState(initPage());
+  const [debouncedSearch, setDebouncedSearch] = useState(initPage().search);
 
   const sortOptions = [
     { value: "featured", label: "Featured" },
@@ -58,6 +59,15 @@ function ProductsPageContent() {
   ];
 
   const symbol = "\u09F3";
+
+  // Debounce search input (300ms) to avoid excessive API requests.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(state.search);
+      setState((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [state.search]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -78,6 +88,8 @@ function ProductsPageContent() {
   }, [fetchCategories]);
 
   const fetchProducts = useCallback(async () => {
+    // Cancel any in-flight request to prevent race conditions.
+    abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
@@ -89,7 +101,7 @@ function ProductsPageContent() {
       params.set("page", String(state.page));
       params.set("limit", String(state.limit));
       params.set("sort", state.sort);
-      if (state.search) params.set("search", state.search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (state.category && state.category !== "all") params.set("category", state.category);
       if (state.minPrice) params.set("minPrice", state.minPrice);
       if (state.maxPrice) params.set("maxPrice", state.maxPrice);
@@ -111,9 +123,9 @@ function ProductsPageContent() {
       const data = await res.json();
       if (ctrl.signal.aborted) return;
 
-      setProducts(data.items || []);
-      setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / state.limit)));
+      setProducts(data.items || data.products || []);
+      setTotal(data.total || data.pagination?.totalProducts || 0);
+      setTotalPages(Math.max(1, Math.ceil((data.total || data.pagination?.totalProducts || 0) / state.limit)));
     } catch (err) {
       if (ctrl.signal.aborted) return;
       setError(err instanceof Error ? err.message : "Failed to load products.");
@@ -123,11 +135,11 @@ function ProductsPageContent() {
     } finally {
       if (!ctrl.signal.aborted) setLoading(false);
     }
-  }, [state, SERVER_URL]);
+  }, [state, debouncedSearch, SERVER_URL]);
 
   useEffect(() => {
     fetchProducts();
-  }, [state]);
+  }, [state, debouncedSearch]);
 
   useEffect(() => {
     const next = initPage();
@@ -145,6 +157,7 @@ function ProductsPageContent() {
         prev.inStock === next.inStock;
       return same ? prev : next;
     });
+    setDebouncedSearch(next.search);
   }, [String(searchParams)]);
 
   useEffect(() => {
@@ -152,7 +165,7 @@ function ProductsPageContent() {
     if (state.page && state.page !== 1) params.set("page", String(state.page));
     if (state.limit && state.limit !== 12) params.set("limit", String(state.limit));
     if (state.sort && state.sort !== "featured") params.set("sort", state.sort);
-    if (state.search) params.set("search", state.search);
+    if (debouncedSearch) params.set("search", debouncedSearch);
     if (state.category && state.category !== "all") params.set("category", state.category);
     if (state.minPrice) params.set("minPrice", state.minPrice);
     if (state.maxPrice) params.set("maxPrice", state.maxPrice);
@@ -164,7 +177,7 @@ function ProductsPageContent() {
     if (next !== current) {
       router.replace(next ? `/products?${next}` : "/products", { scroll: false });
     }
-  }, [state, router, searchParams]);
+  }, [state, router, searchParams, debouncedSearch]);
 
   const handleChange = (key) => (e) => setState((prev) => ({ ...prev, [key]: e.target.value, page: 1 }));
 
