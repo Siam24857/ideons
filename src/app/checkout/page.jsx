@@ -25,6 +25,7 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [newAddress, setNewAddress] = useState(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [formError, setFormError] = useState(null);
   const [formData, setFormData] = useState({
@@ -253,6 +254,58 @@ export default function CheckoutPage() {
     }));
   };
 
+  const handleSaveAddress = async () => {
+    if (!user) {
+      toast.error("Please log in to save your address.");
+      return;
+    }
+    const required = ["fullName", "phone", "division", "district", "city", "streetAddress"];
+    for (const f of required) {
+      if (!String(formData[f] || "").trim()) {
+        toast.error("Please complete all required fields.");
+        return;
+      }
+    }
+    setSavingAddress(true);
+    try {
+      const payload = {
+        fullName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        division: formData.division,
+        district: formData.district,
+        city: formData.city,
+        streetAddress: formData.streetAddress,
+        houseInfo: formData.houseInfo,
+        postalCode: formData.postalCode,
+        deliveryInstructions: formData.deliveryInstructions,
+        label: formData.label,
+        country: "Bangladesh",
+        isDefault: addresses.length === 0,
+      };
+      const result = await api.post("/api/addresses", payload);
+      if (!result || !result.ok) {
+        toast.error(result?.message || "Failed to save address. Please try again.");
+        return;
+      }
+      const saved = result.data?.address || result.data;
+      if (!saved) {
+        toast.error("Failed to save address. Please try again.");
+        return;
+      }
+      const serialized = { ...saved, _id: saved._id ? String(saved._id) : saved._id };
+      setAddresses((prev) => [serialized, ...prev]);
+      setSelectedAddressId(serialized._id);
+      setShowNewAddressForm(false);
+      setNewAddress(null);
+      toast.success("Address saved successfully.");
+    } catch (err) {
+      toast.error("Failed to save address. Please try again.");
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
   const deliveryMethods = [
     { label: "Cash on Delivery", value: "cod", enabled: codEnabled, icon: <FiMapPin className="h-4 w-4" /> },
     { label: "Card (Stripe)", value: "stripe", enabled: stripeEnabled, icon: <FiCreditCard className="h-4 w-4" /> },
@@ -475,15 +528,22 @@ export default function CheckoutPage() {
                           className="w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-sm text-navy-900 outline-none focus:border-blue-500"
                         />
                       </div>
-                      <div className="sm:col-span-2">
-                        <label className="mb-1 block text-xs font-medium text-navy-600">Address Label</label>
-                        <input
-                          name="label"
-                          value={formData.label}
-                          onChange={handleNewAddressChange}
-                          className="w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-sm text-navy-900 outline-none focus:border-blue-500"
-                          placeholder="e.g. Home, Office"
-                        />
+                      <div className="sm:col-span-2 flex gap-3">
+                        <button
+                          type="button"
+                          onClick={handleSaveAddress}
+                          disabled={savingAddress}
+                          className="flex-1 rounded-lg bg-[#FFC928] px-4 py-2 text-sm font-bold text-[#123B69] transition hover:bg-[#FFD84D] disabled:opacity-60"
+                        >
+                          {savingAddress ? "Saving…" : "Save Address"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowNewAddressForm(false)}
+                          className="rounded-lg border border-[#EAEDED] bg-white px-4 py-2 text-sm font-medium text-[#172337] hover:bg-[#F5F7FA]"
+                        >
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   </div>

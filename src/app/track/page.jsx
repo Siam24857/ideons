@@ -5,7 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api-client";
 import toast from "react-hot-toast";
 import { Button, LinkButton } from "@/components/ui/Buttons";
-import { FiAlertCircle, FiLoader, FiPackage, FiTruck, FiClock, FiMapPin } from "react-icons/fi";
+import { FiAlertCircle, FiLoader, FiPackage, FiTruck, FiClock, FiMapPin, FiSearch } from "react-icons/fi";
 import { formatDate } from "@/lib/format";
 import { formatMoney } from "@/lib/money";
 
@@ -18,8 +18,6 @@ export default function TrackPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    e.stopPropagation();
-
     setError(null);
     setOrder(null);
 
@@ -90,11 +88,11 @@ export default function TrackPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <section className="border-b border-ink-100 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold tracking-tight text-ink-950">Track Order</h1>
-          <p className="mt-1 text-sm text-ink-500">
+    <div className="min-h-screen bg-[#F5F7FA]">
+      <section className="border-b border-[#EAEDED] bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <h1 className="text-2xl font-bold tracking-tight text-[#0B2545]">Track Order</h1>
+          <p className="mt-1 text-sm text-[#123B69]">
             Enter your order number and the email or phone used when placing it.
           </p>
         </div>
@@ -102,12 +100,11 @@ export default function TrackPage() {
 
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
-
           {/* Tracking form */}
-          <div className="rounded-xl border border-ink-100 bg-white p-6 shadow-sm">
+          <div className="rounded-xl border border-[#EAEDED] bg-white p-6 shadow-sm">
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
-                <label className="mb-2 block text-sm font-medium text-ink-700">
+                <label className="mb-2 block text-sm font-medium text-[#172337]">
                   Order Number
                 </label>
                 <input
@@ -115,12 +112,12 @@ export default function TrackPage() {
                   value={orderNumber}
                   onChange={(e) => setOrderNumber(e.target.value)}
                   placeholder="IDN-20261025-XXXXXX"
-                  className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 outline-none focus:border-brand-500"
+                  className="w-full rounded-lg border border-[#EAEDED] bg-white px-3 py-2 text-sm text-[#0B2545] outline-none focus:border-[#FFC928]"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-ink-700">
+                <label className="mb-2 block text-sm font-medium text-[#172337]">
                   Email or Phone
                 </label>
                 <input
@@ -128,11 +125,11 @@ export default function TrackPage() {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="you@example.com or 01XXXXXXXXX"
-                  className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 outline-none focus:border-brand-500"
+                  className="w-full rounded-lg border border-[#EAEDED] bg-white px-3 py-2 text-sm text-[#0B2545] outline-none focus:border-[#FFC928]"
                 />
               </div>
 
-              <p className="text-xs text-ink-400">
+              <p className="text-xs text-[#123B69]/60">
                 Find your order number in the order confirmation email or SMS.
               </p>
 
@@ -149,13 +146,16 @@ export default function TrackPage() {
                     Searching…
                   </>
                 ) : (
-                  "Track Order"
+                  <>
+                    <FiSearch className="h-4 w-4" />
+                    Track Order
+                  </>
                 )}
               </Button>
             </form>
           </div>
 
-          {/* Error - prominent */}
+          {/* Error */}
           {error && (
             <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
               <div className="flex items-start gap-3">
@@ -167,18 +167,17 @@ export default function TrackPage() {
 
           {/* Order result */}
           {order && (
-            <div className="rounded-xl border border-ink-100 bg-white p-6 shadow-sm">
-              {/* Order header */}
+            <div className="rounded-xl border border-[#EAEDED] bg-white p-6 shadow-sm">
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h2 className="text-lg font-bold text-ink-950">
-                      Order #{order.orderNumber || order.order_number || "N/A"}
+                    <h2 className="text-lg font-bold text-[#0B2545]">
+                      Order #{order.orderNumber || "N/A"}
                     </h2>
-                    <p className="text-sm text-ink-500">
+                    <p className="text-sm text-[#123B69]">
                       Placed{" "}
                       {order.createdAt
-                        ? formatDate(order.createdAt, { withTime: false })
+                        ? new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
                         : "-"}
                     </p>
                   </div>
@@ -187,41 +186,39 @@ export default function TrackPage() {
                   </span>
                 </div>
 
-                {/* Order summary cards */}
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-xl border border-ink-100 bg-ink-50 p-4">
-                    <p className="text-xs font-medium text-ink-500 uppercase">Items</p>
-                    <p className="text-lg font-bold text-ink-900">{order.itemsCount || 0}</p>
+                  <div className="rounded-xl border border-[#EAEDED] bg-[#F5F7FA] p-4">
+                    <p className="text-xs font-medium text-[#123B69] uppercase">Items</p>
+                    <p className="text-lg font-bold text-[#0B2545]">{order.itemsCount || 0}</p>
                   </div>
-                  <div className="rounded-xl border border-ink-100 bg-ink-50 p-4">
-                    <p className="text-xs font-medium text-ink-500 uppercase">Total</p>
-                    <p className="text-lg font-bold text-ink-900">
+                  <div className="rounded-xl border border-[#EAEDED] bg-[#F5F7FA] p-4">
+                    <p className="text-xs font-medium text-[#123B69] uppercase">Total</p>
+                    <p className="text-lg font-bold text-[#0B2545]">
                       {formatMoney(order.total || 0, order.currencySymbol || "৳")}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-ink-100 bg-ink-50 p-4">
-                    <p className="text-xs font-medium text-ink-500 uppercase">Payment</p>
-                    <p className="text-sm font-medium text-ink-700 capitalize">
+                  <div className="rounded-xl border border-[#EAEDED] bg-[#F5F7FA] p-4">
+                    <p className="text-xs font-medium text-[#123B69] uppercase">Payment</p>
+                    <p className="text-sm font-medium text-[#172337] capitalize">
                       {order.paymentStatus || "Unpaid"}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Order timeline */}
               <div>
-                <h3 className="mb-3 text-sm font-semibold text-ink-900 uppercase tracking-wider">
+                <h3 className="mb-3 text-sm font-semibold text-[#0B2545] uppercase tracking-wider">
                   Order Timeline & Status Updates
                 </h3>
-                <div className="space-y-4 pl-4 border-l border-ink-200">
+                <div className="space-y-4 pl-4 border-l border-[#EAEDED]">
                   {(order.history || []).map((h, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <div className="mt-1 flex h-2 w-2 items-center justify-center rounded-full bg-brand-500 border-2 border-brand-500" />
+                      <div className="mt-1 flex h-2 w-2 items-center justify-center rounded-full bg-[#FFC928] border-2 border-[#FFC928]" />
                       <div className="flex flex-col">
-                        <p className="text-sm text-ink-600">
+                        <p className="text-sm text-[#172337]">
                           {h.message || h.status || "Order update"}
                         </p>
-                        <p className="text-xs text-ink-400">
+                        <p className="text-xs text-[#123B69]/60">
                           {h.at ? new Date(h.at).toLocaleString("en-GB", {
                             day: "2-digit",
                             month: "short",
@@ -233,7 +230,7 @@ export default function TrackPage() {
                       </div>
                     </div>
                   ))}
-                  {(order.timeline && typeof order.timeline === "object" && Object.keys(order.timeline).length > 0) && (
+                  {order.timeline && typeof order.timeline === "object" && Object.keys(order.timeline).length > 0 && (
                     <>
                       {Object.entries(order.timeline).map(([key, value]) => {
                         if (!value || key === "placedAt") return null;
@@ -242,10 +239,10 @@ export default function TrackPage() {
                           .replace(/^./, (str) => str.toUpperCase());
                         return (
                           <div key={key} className="flex items-start gap-3">
-                            <div className="mt-1 flex h-2 w-2 items-center justify-center rounded-full bg-brand-500 border-2 border-brand-500" />
+                            <div className="mt-1 flex h-2 w-2 items-center justify-center rounded-full bg-[#FFC928] border-2 border-[#FFC928]" />
                             <div className="flex flex-col">
-                              <p className="text-sm text-ink-600">{label}</p>
-                              <p className="text-xs text-ink-400">
+                              <p className="text-sm text-[#172337]">{label}</p>
+                              <p className="text-xs text-[#123B69]/60">
                                 {new Date(value).toLocaleString("en-GB", {
                                   day: "2-digit",
                                   month: "short",
@@ -259,6 +256,9 @@ export default function TrackPage() {
                         );
                       })}
                     </>
+                  )}
+                  {(!order.history || order.history.length === 0) && (!order.timeline || Object.keys(order.timeline).length === 0) && (
+                    <p className="text-sm text-[#123B69]/60">No status updates available yet.</p>
                   )}
                 </div>
               </div>

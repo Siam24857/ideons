@@ -2,6 +2,7 @@
 
 import { useStore } from "@/components/providers/StoreProvider";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ShoppingCart, CreditCard, Truck, ShieldCheck, Headphones } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui/Buttons";
 import { Badge } from "@/components/ui/Badge";
@@ -9,13 +10,14 @@ import toast from "react-hot-toast";
 
 export function ProductActions({ product, symbol, effectivePrice }) {
   const { addToCart, busy } = useStore();
+  const router = useRouter();
   const [quantity, setQuantity] = useState(1);
-const maxQty = product.stock || 1;
-const inStock = product.inStock ?? (product.stock > 0);
+  const maxQty = product.stock || 1;
+  const inStock = product.inStock ?? (product.stock > 0);
 
   const handleAddToCart = async () => {
     if (!inStock) {
-      toast.error("This product is out of stock.");
+      toast.error("Sorry, this product is currently out of stock.");
       return;
     }
     if (quantity > maxQty) {
@@ -25,6 +27,25 @@ const inStock = product.inStock ?? (product.stock > 0);
     const result = await addToCart({ productId: product._id, quantity });
     if (result.ok) {
       toast.success("Added to cart");
+    } else {
+      toast.error(result.message || "Failed to add to cart.");
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!inStock) {
+      toast.error("Sorry, this product is currently out of stock.");
+      return;
+    }
+    if (quantity > maxQty) {
+      toast.error(`Only ${maxQty} unit(s) available.`);
+      return;
+    }
+    const result = await addToCart({ productId: product._id, quantity });
+    if (result.ok) {
+      router.push("/checkout");
+    } else {
+      toast.error(result.message || "Failed to add to cart.");
     }
   };
 
@@ -70,16 +91,16 @@ const inStock = product.inStock ?? (product.stock > 0);
           <ShoppingCart className="h-4 w-4" />
           {inStock ? "Add to Cart" : "Out of Stock"}
         </Button>
-        <LinkButton
-          href="/checkout"
+        <Button
           // variant="outlineDark"
           size="lg"
-          disabled={!inStock}
-          className="w-full sm:w-auto"
+          disabled={!inStock || busy}
+          className="w-full sm:w-auto bg-blue-800"
+          onClick={handleBuyNow}
         >
-          <CreditCard className="h-4 w-4 " /> 
+          <CreditCard className="h-4 w-4" />
           Buy Now
-        </LinkButton>
+        </Button>
       </div>
 
       {hasDiscount && (
@@ -105,4 +126,3 @@ const inStock = product.inStock ?? (product.stock > 0);
     </div>
   );
 }
-
