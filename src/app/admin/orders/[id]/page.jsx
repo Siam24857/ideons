@@ -76,8 +76,8 @@ export default function AdminOrderDetailsPage({ params }) {
       );
       if (result.ok) {
         const data = await result.json();
-        setOrder(data.order);
-        setNewStatus(data.order.orderStatus);
+        await loadOrder();
+        setNewStatus((data.order && data.order.orderStatus) || newStatus);
         setInternalNote("");
         setCustomerMessage("");
       } else {
@@ -91,9 +91,35 @@ export default function AdminOrderDetailsPage({ params }) {
     }
   };
 
+  const markAsPaid = async () => {
+    if (!order || saving) return;
+    if (!window.confirm("Confirm that payment has been received and verified for this order?")) return;
+
+    setSaving(true);
+    try {
+      const result = await fetch(
+        `/api/admin/orders/${encodeURIComponent(order.orderNumber)}/payment`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentStatus: "paid" }),
+        }
+      );
+      if (result.ok) {
+        await loadOrder();
+      } else {
+        const err = await result.json().catch(() => ({}));
+        alert(err.message || "Failed to update payment status.");
+      }
+    } catch (error) {
+      alert("Network error while updating payment status.");
+    } finally {
+      setSaving(false);
+    }
+  };
   const markAsDelivered = async () => {
     if (!order || saving) return;
-    if (!window.confirm("Are you sure this order has been successfully delivered to the customer?")) return;
 
     setSaving(true);
     try {
@@ -111,11 +137,10 @@ export default function AdminOrderDetailsPage({ params }) {
         }
       );
       if (result.ok) {
-        const data = await result.json();
-        setOrder(data.order);
-        setNewStatus(data.order.orderStatus);
+        await loadOrder();
       } else {
-        const err = await result.json();
+        let err = {};
+        try { err = await result.json(); } catch {}
         alert(err.message || "Failed to update order status.");
       }
     } catch (error) {
@@ -488,10 +513,19 @@ export default function AdminOrderDetailsPage({ params }) {
                   variant="brand"
                   onClick={markAsDelivered}
                   loading={saving}
-                  disabled={saving || order.orderStatus === "delivered"}
+                  disabled={saving || !(order.orderStatus === "processing" || order.orderStatus === "shipped")}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   Mark as Delivered
+                </Button>
+                <Button
+                  variant="brand"
+                  onClick={markAsPaid}
+                  loading={saving}
+                  disabled={saving || order.paymentStatus === "paid"}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  Mark as Paid
                 </Button>
                 {allowedNext.length === 0 && (
                   <span className="mt-2 text-xs text-navy-500">
