@@ -15,6 +15,7 @@ import { SectionHeading } from "@/components/ui/EmptyState";
 import Rating from "@/components/ui/Rating";
 import NewsletterForm from "@/components/home/NewsletterForm";
 import HeroCarousel from "@/components/home/HeroCarousel";
+import VideoAdBanner from "@/components/home/VideoAdBanner";
 import ShoppingCards from "@/components/home/ShoppingCards";
 import Container from "@/components/layout/Container";
 import { STORE, DEFAULT_CATEGORIES } from "@/lib/constants";
@@ -121,6 +122,7 @@ export default async function HomePage({ searchParams }) {
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
       <HeroCarousel featuredProduct={heroProduct} hasHero={hasHero} symbol={symbol} />
+      <VideoAdBanner />
       <ShoppingCards products={sections.featured || []} symbol={symbol} />
 
       <section className="bg-white py-12">
