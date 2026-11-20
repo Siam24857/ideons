@@ -65,7 +65,7 @@ export default function BannerSlider() {
     <section className="relative w-full bg-white">
       <div
         ref={containerRef}
-        className="relative mx-auto max-w-[1440px] overflow-hidden"
+        className="relative mx-auto max-w-[1440px] overflow-hidden m-5 rounded-2xl"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
         onTouchStart={handleTouchStart}
