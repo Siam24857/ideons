@@ -15,6 +15,7 @@ import { SectionHeading } from "@/components/ui/EmptyState";
 import Rating from "@/components/ui/Rating";
 import NewsletterForm from "@/components/home/NewsletterForm";
 import HeroCarousel from "@/components/home/HeroCarousel";
+import BannerSlider from "@/components/home/BannerSlider";
 import VideoAdBanner from "@/components/home/VideoAdBanner";
 import ShoppingCards from "@/components/home/ShoppingCards";
 import Container from "@/components/layout/Container";
@@ -121,6 +122,7 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
+      <BannerSlider />
       <HeroCarousel featuredProduct={heroProduct} hasHero={hasHero} symbol={symbol} />
       <VideoAdBanner />
       <ShoppingCards products={sections.featured || []} symbol={symbol} />
@@ -301,6 +303,23 @@ export default async function HomePage({ searchParams }) {
           </Container>
         </section>
       )}
+
+      <section className="bg-[#F5F7FA] py-10">
+        <Container>
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-bold text-[#0B2545]">About IDeons</h2>
+            <p className="mt-3 text-sm leading-6 text-[#172337]">
+              IDeons is a Bangladesh-focused marketplace bringing useful smart gadgets,
+              home products, electronics, and innovative everyday products to customers
+              across the country. We are committed to delivering value, reliability,
+              and convenience.
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#FFC928]">
+              Smart Products. Better Everyday Living.
+            </p>
+          </div>
+        </Container>
+      </section>
 
       <section className="bg-[#123B69] py-10">
         <Container>
