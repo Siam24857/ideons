@@ -168,7 +168,7 @@ export default function HeroCarousel({
                 </div>
 
                 {/* Right: Product Image */}
-                <div className="relative h-[320px] w-full max-w-[400px] rounded-xl overflow-hidden shadow-2xl border border-[#EAEDED]">
+                <div className="relative h-[500px] w-full max-w-[500px] rounded-xl overflow-hidden shadow-2xl border border-[#EAEDED]">
                   {featuredProduct.images?.[0] ? (
                     <img
                       src={featuredProduct.images[0]}
