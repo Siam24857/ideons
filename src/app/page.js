@@ -123,9 +123,9 @@ export default async function HomePage({ searchParams }) {
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
       <BannerSlider />
+      <ShoppingCards products={sections.featured || []} symbol={symbol} />
       <HeroCarousel featuredProduct={heroProduct} hasHero={hasHero} symbol={symbol} />
       <VideoAdBanner />
-      <ShoppingCards products={sections.featured || []} symbol={symbol} />
 
       <section className="bg-white py-12">
         <Container>

@@ -100,7 +100,7 @@ export default function ShoppingCards({ products = [], symbol = "৳" }) {
   });
 
   return (
-    <section className="bg-[#EAEDED] py-12">
+    <section className="relative z-10 -mt-16 bg-transparent py-0 sm:-mt-20">
       <Container>
         {/* Section Header */}
         <div className="mb-8 flex items-center justify-between">
