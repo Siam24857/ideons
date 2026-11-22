@@ -115,8 +115,8 @@ export default async function HomePage({ searchParams }) {
 
   const allFeatured = sections.featured || [];
   const mosquitoProduct = allFeatured.find(
-    (p) => (p.title || "").toLowerCase().includes("mosquito")
-  );
+    (p) => (p.title || "").toLowerCase().includes("mosquito") && String(p._id) === "6af2fa2df57d6ab1a750b4ca"
+  ) || allFeatured.find((p) => (p.title || "").toLowerCase().includes("mosquito"));
   const heroProduct = mosquitoProduct || allFeatured[0];
   const hasHero = Boolean(heroProduct);
 
