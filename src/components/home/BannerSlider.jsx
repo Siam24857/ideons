@@ -11,30 +11,6 @@ const BANNERS = [
     alt: "IDeons China Imports",
     href: "/products",
   },
-  {
-    id: "upgrade-life",
-    image: "",
-    alt: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDoEwZ4nOBzVFkdV0mpR0_wRQUkU73yg2_rZyEu5CRVQ&s=10",
-    href: "/products",
-  },
-  {
-    id: "upgrade-life",
-    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5ymBqxShVZ6KU4LMPAm19E_hoM1_ZseQJmtjtovix0w&s=10",
-    alt: "Upgrade Your Everyday Life",
-    href: "/products",
-  },
-  {
-    id: "upgrade-life",
-    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQtP6Lc-U2wI-GNh-ILbZsVKPlYq3PtaSMnA3M-EzmZmQ&s=10",
-    alt: "Upgrade Your Everyday Life",
-    href: "/products",
-  },
-  {
-    id: "upgrade-life",
-    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT29o_8ClKtFQh5UMVHsIA_bu3_4bL8eB0HHK4jdsJ2Ug&s=10",
-    alt: "Upgrade Your Everyday Life",
-    href: "/products",
-  },
 ];
 
 export default function BannerSlider() {
