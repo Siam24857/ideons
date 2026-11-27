@@ -2,9 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { api, errorMessage } from "@/lib/api-client";
-import { addGuestItem, clearGuestCart, guestCount, readGuestCart, writeGuestCart } from "@/lib/guest-cart";
 
 /**
  * Store-wide client state: cart & wishlist counters plus the actions used by
@@ -12,33 +12,27 @@ import { addGuestItem, clearGuestCart, guestCount, readGuestCart, writeGuestCart
  *
  * Rules honoured here:
  *  - nothing reports success before the API confirmed the operation
- *  - guests get a local cart that is merged into the account cart on sign-in
- *  - wishlist actions require a session
+ *  - cart and wishlist actions require a Better Auth session
  */
 
 const StoreContext = createContext(null);
 
 export function StoreProvider({ children }) {
   const { data: session, isPending } = authClient.useSession();
+  const router = useRouter();
   const user = session?.user || null;
   const [cartCount, setCartCount] = useState(0);
   const [wishlistIds, setWishlistIds] = useState([]);
   const [busy, setBusy] = useState(false);
 
   const refreshCart = useCallback(async () => {
-    if (!user) {
-      setCartCount(guestCount());
-      return;
-    }
+    if (!user) return;
     const result = await api.get("/api/cart");
     if (result.ok) setCartCount(result.data?.cart?.itemsCount || 0);
   }, [user]);
 
   const refreshWishlist = useCallback(async () => {
-    if (!user) {
-      setWishlistIds([]);
-      return;
-    }
+    if (!user) return;
     const result = await api.get("/api/wishlist");
     if (result.ok) {
       setWishlistIds((result.data?.wishlist?.items || []).map((i) => i.productId));
@@ -46,34 +40,44 @@ export function StoreProvider({ children }) {
   }, [user]);
 
   useEffect(() => {
-    refreshCart();
-    refreshWishlist();
-  }, [refreshCart, refreshWishlist]);
-
-  // Keep the guest counter in sync when the tab edits its local cart.
-  useEffect(() => {
-    if (user) return undefined;
-    const onChange = () => setCartCount(guestCount());
-    window.addEventListener("ideons:guest-cart", onChange);
-    window.addEventListener("storage", onChange);
+    if (!user) return undefined;
+    let active = true;
+    (async () => {
+      const [cartResult, wishlistResult] = await Promise.all([
+        api.get("/api/cart"),
+        api.get("/api/wishlist"),
+      ]);
+      if (!active) return;
+      if (cartResult.ok) setCartCount(cartResult.data?.cart?.itemsCount || 0);
+      if (wishlistResult.ok) {
+        setWishlistIds((wishlistResult.data?.wishlist?.items || []).map((item) => item.productId));
+      }
+    })();
     return () => {
-      window.removeEventListener("ideons:guest-cart", onChange);
-      window.removeEventListener("storage", onChange);
+      active = false;
     };
   }, [user]);
 
   const addToCart = useCallback(
     async ({ productId, quantity = 1, variant = null }) => {
+      if (isPending) return { ok: false, authLoading: true };
+      const goToSignIn = () => {
+        const returnTo = `${window.location.pathname}${window.location.search}`;
+        router.push(`/signin?callbackURL=${encodeURIComponent(returnTo)}`);
+      };
+      if (!user) {
+        goToSignIn();
+        return { ok: false, requiresAuth: true };
+      }
+
       setBusy(true);
       try {
-        if (!user) {
-          addGuestItem(productId, quantity, variant);
-          setCartCount(guestCount());
-          toast.success("Added to cart");
-          return { ok: true, guest: true };
-        }
         const result = await api.post("/api/cart", { productId, quantity, variant });
         if (!result.ok) {
+          if (result.status === 401) {
+            goToSignIn();
+            return { ok: false, requiresAuth: true };
+          }
           toast.error(errorMessage(result));
           return { ok: false, error: result };
         }
@@ -84,7 +88,7 @@ export function StoreProvider({ children }) {
         setBusy(false);
       }
     },
-    [user]
+    [isPending, router, user]
   );
 
   const toggleWishlist = useCallback(
@@ -109,27 +113,15 @@ export function StoreProvider({ children }) {
     [user, wishlistIds]
   );
 
-  /** Called after sign-in to move the local cart into the account cart. */
+  /** Kept for compatibility with the existing sign-in flow. */
   const mergeGuestCart = useCallback(async () => {
-    const items = readGuestCart();
-    if (items.length) {
-      const result = await api.post("/api/cart/merge", { items });
-      if (result.ok) {
-        clearGuestCart();
-        setCartCount(result.data.cart.itemsCount);
-        toast.success(`${result.data.merged || items.length} item(s) moved to your cart`);
-      }
-    } else {
-      refreshCart();
-    }
+    await refreshCart();
     refreshWishlist();
   }, [refreshCart, refreshWishlist]);
 
   const clearCart = useCallback(async () => {
     if (!user) {
-      writeGuestCart([]);
-      setCartCount(0);
-      return { ok: true };
+      return { ok: false, requiresAuth: true };
     }
     const result = await api.delete("/api/cart");
     if (result.ok) setCartCount(0);
@@ -141,8 +133,8 @@ export function StoreProvider({ children }) {
       user,
       authLoading: isPending,
       cartCount,
-      wishlistIds,
-      wishlistCount: wishlistIds.length,
+      wishlistIds: user ? wishlistIds : [],
+      wishlistCount: user ? wishlistIds.length : 0,
       busy,
       addToCart,
       toggleWishlist,
@@ -150,7 +142,7 @@ export function StoreProvider({ children }) {
       refreshWishlist,
       mergeGuestCart,
       clearCart,
-      isWishlistSaved: (id) => wishlistIds.includes(id),
+      isWishlistSaved: (id) => Boolean(user) && wishlistIds.includes(id),
     }),
     [
       user,

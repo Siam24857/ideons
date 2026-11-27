@@ -113,9 +113,9 @@ export async function GET(request, ctx) {
     }
   }
 
-  const target = new URL(`${base}/payment/verify`);
+  const target = new URL(`${base}/payment/${order ? "success" : "verify"}`);
   if (order?.orderNumber) {
-    target.searchParams.set("order", order.orderNumber);
+    target.searchParams.set("orderId", order.orderNumber);
     if (transactionId) target.searchParams.set("txn", transactionId);
   } else if (orderRef) {
     target.searchParams.set("order", orderRef);

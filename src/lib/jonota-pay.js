@@ -68,6 +68,11 @@ function parseProviderAmount(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function isBkashPaymentMethod(value) {
+  const method = String(value || "").toLowerCase().replace(/[^a-z]/g, "");
+  return ["bkash", "bkashpayment", "bkashcheckout"].includes(method);
+}
+
 function parseProviderMetadata(value) {
   if (!value) return {};
   if (typeof value === "object" && !Array.isArray(value)) return value;
@@ -409,10 +414,21 @@ export async function verifyJonotaTransaction(transactionId) {
       status = "FAILED";
     }
 
+    const providerTransactionId = String(
+      data.transaction_id || data.transactionId || ""
+    ).trim();
+    if (!providerTransactionId || providerTransactionId !== id) {
+      throw new ApiError(
+        "The payment gateway did not confirm the requested transaction id.",
+        409,
+        "PAYMENT_TRANSACTION_MISMATCH"
+      );
+    }
+
     return {
       status,
       rawStatus,
-      transactionId: String(data.transaction_id || data.transactionId || id).trim(),
+      transactionId: providerTransactionId,
       amount: data.amount ?? null,
       paymentMethod: data.payment_method || data.paymentMethod || null,
       metadata: parseProviderMetadata(data.metadata ?? data.meta_data),
@@ -493,25 +509,15 @@ function assertVerificationMatchesOrder(order, verification) {
     .filter((v) => v !== null && v !== undefined && String(v).trim())
     .map((v) => String(v).trim());
 
-  if (candidates.length) {
-    const matches = candidates.some(
-      (value) => value === String(order._id) || value === String(order.orderNumber)
-    );
-    if (!matches) {
-      throw new ApiError(
-        "This payment transaction does not belong to this order.",
-        409,
-        "PAYMENT_ORDER_MISMATCH"
-      );
-    }
-    return;
-  }
+  const matches = candidates.some(
+    (value) => value === String(order._id) || value === String(order.orderNumber)
+  );
+  if (matches) return;
 
-  /* No metadata in the provider response. We only trust the transaction when
-   * it is already recorded against this exact order (e.g. a retry after the
-   * first callback stored it). Otherwise a transaction could be replayed onto
-   * a different order. */
+  /* A completed order was previously tied to this transaction by a successful
+   * verification. This exception is only for idempotent repeat callbacks. */
   if (
+    order.paymentStatus === PAYMENT_STATUS.PAID &&
     order.transactionId &&
     verification?.transactionId &&
     String(order.transactionId) === String(verification.transactionId)
@@ -529,23 +535,29 @@ function assertVerificationMatchesOrder(order, verification) {
 /* ---------------------------- idempotent updates --------------------------- */
 
 export async function ensureJonotaIndexes() {
-  if (globalThis[INDEX_FLAG]) return;
-  globalThis[INDEX_FLAG] = true;
-  try {
-    const { orders } = await collections();
-    await orders.createIndex(
-      { transactionId: 1 },
-      {
-        unique: true,
-        partialFilterExpression: { transactionId: { $type: "string" } },
-        name: "uniq_provider_transaction",
-      }
-    );
-  } catch (error) {
-    /* Existing duplicate data can prevent index creation. The application
-     * still performs an explicit duplicate check, so we log and continue. */
-    console.warn("[jonota] transaction index not created:", error.message);
+  const global = globalThis;
+  if (!global[INDEX_FLAG]) {
+    global[INDEX_FLAG] = (async () => {
+      const { orders } = await collections();
+      await orders.createIndex(
+        { transactionId: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { transactionId: { $type: "string" } },
+          name: "uniq_provider_transaction",
+        }
+      );
+    })().catch((error) => {
+      delete global[INDEX_FLAG];
+      console.error("[jonota] required transaction index could not be ensured:", error);
+      throw new ApiError(
+        "Payment verification is temporarily unavailable. Please try again later.",
+        503,
+        "PAYMENT_INDEX_SETUP_FAILED"
+      );
+    });
   }
+  await global[INDEX_FLAG];
 }
 
 async function recordVerificationIssue(order, verification, reason, code, source) {
@@ -684,6 +696,21 @@ export async function applyJonotaPayment({ order, verification, source }) {
       "The payment could not be verified because the gateway did not return a transaction id.",
       502,
       "MISSING_TRANSACTION_ID"
+    );
+  }
+
+  if (!isBkashPaymentMethod(verification.paymentMethod)) {
+    await recordVerificationIssue(
+      order,
+      verification,
+      "The verified transaction is not identified by the gateway as a bKash payment.",
+      "PAYMENT_METHOD_MISMATCH",
+      source
+    );
+    throw new ApiError(
+      "The verified transaction is not a bKash payment. Please contact support.",
+      409,
+      "PAYMENT_METHOD_MISMATCH"
     );
   }
 
@@ -1045,7 +1072,6 @@ export function serializePaymentOrder(order) {
     orderStatus: order.orderStatus,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
-    paymentProvider: order.paymentProvider || null,
     transactionId: order.transactionId || null,
     paidAt: order.paidAt || null,
     createdAt: order.createdAt || null,

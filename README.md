@@ -20,6 +20,26 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## IDeons backend and payments
+
+The storefront and authenticated backend APIs run in this Next.js App Router
+application. API handlers use Better Auth and MongoDB Native Driver; this
+repository has no separate backend start command. Run the full frontend and API
+with `npm run dev`, then open `http://localhost:3000`.
+
+Configure `.env` with `MONGODB_URI`, `MONGODB_DB`, `BETTER_AUTH_SECRET`, and
+`BETTER_AUTH_URL`. For bKash checkout through the existing Jonota Pay
+integration, set the server-only `JONOTA_PAY_API_KEY` and keep callback URLs
+pointed at this application. Orders are marked paid only after server-side
+gateway verification.
+
+Production commands:
+
+```bash
+npm run build
+npm run start
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

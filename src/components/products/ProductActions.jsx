@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import toast from "react-hot-toast";
 
 export function ProductActions({ product, symbol, effectivePrice }) {
-  const { addToCart, busy } = useStore();
+  const { addToCart, busy, authLoading } = useStore();
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const maxQty = product.stock || 1;
@@ -25,9 +25,7 @@ export function ProductActions({ product, symbol, effectivePrice }) {
       return;
     }
     const result = await addToCart({ productId: product._id, quantity });
-    if (result.ok) {
-      toast.success("Added to cart");
-    } else {
+    if (!result.ok && !result.requiresAuth && !result.authLoading) {
       toast.error(result.message || "Failed to add to cart.");
     }
   };
@@ -44,7 +42,7 @@ export function ProductActions({ product, symbol, effectivePrice }) {
     const result = await addToCart({ productId: product._id, quantity });
     if (result.ok) {
       router.push("/checkout");
-    } else {
+    } else if (!result.requiresAuth && !result.authLoading) {
       toast.error(result.message || "Failed to add to cart.");
     }
   };
@@ -84,7 +82,7 @@ export function ProductActions({ product, symbol, effectivePrice }) {
           variant="primary"
           size="lg"
           loading={busy}
-          disabled={busy || !inStock}
+          disabled={busy || authLoading || !inStock}
           className="w-full sm:w-auto"
           onClick={handleAddToCart}
         >
@@ -94,7 +92,7 @@ export function ProductActions({ product, symbol, effectivePrice }) {
         <Button
           // variant="outlineDark"
           size="lg"
-          disabled={!inStock || busy}
+          disabled={!inStock || busy || authLoading}
           className="w-full sm:w-auto bg-blue-800"
           onClick={handleBuyNow}
         >

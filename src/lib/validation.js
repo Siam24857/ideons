@@ -142,7 +142,7 @@ export const addressSchema = z.object({
 
 export const checkoutSchema = z.object({
   /** Optional client-side idempotency key that prevents double submissions. */
-  idempotencyKey: z.string().trim().min(8).max(80).optional(),
+  idempotencyKey: z.string().trim().min(8).max(80),
   addressId: objectId.optional().or(z.literal("")).default(""),
   address: addressSchema.optional(),
   /** Present only for the "buy now" flow (single product purchase). */

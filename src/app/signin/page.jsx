@@ -2,10 +2,12 @@
 
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
  
 
 export default function SignInPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -22,19 +24,31 @@ export default function SignInPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const requestedReturnTo = new URLSearchParams(window.location.search).get("callbackURL");
+    let returnTo = "/";
+    if (requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//")) {
+      try {
+        const target = new URL(requestedReturnTo, window.location.origin);
+        if (target.origin === window.location.origin && target.pathname !== "/signin") {
+          returnTo = `${target.pathname}${target.search}${target.hash}`;
+        }
+      } catch {
+        // Keep the safe homepage fallback for malformed return paths.
+      }
+    }
 
     const { data, error } = await authClient.signIn.email({
       email: formData.email,
       password: formData.password,
       rememberMe: true,
-      callbackURL: "/",
+      callbackURL: returnTo,
     });
 
     if (error) {
       alert(error.message || "Sign in failed. Please check your credentials.");
       return;
     }
-    window.location.href = "/";
+    router.push(returnTo);
   };
 
   return (
@@ -102,7 +116,7 @@ export default function SignInPage() {
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-400">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
             href="/signup"
             className="font-semibold text-purple-400 hover:text-purple-300"

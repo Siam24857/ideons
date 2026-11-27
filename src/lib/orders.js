@@ -15,6 +15,37 @@ import { generateOrderNumber } from "@/lib/order-number";
 import { createNotification } from "@/lib/notifications";
 import { scheduleJob } from "@/lib/jobs";
 
+const ORDER_INDEXES_FLAG = Symbol.for("ideons.orders.indexes.ready");
+
+async function ensureOrderIndexes(orders) {
+  const global = globalThis;
+  if (!global[ORDER_INDEXES_FLAG]) {
+    global[ORDER_INDEXES_FLAG] = (async () => {
+      await orders.createIndex(
+        { orderNumber: 1 },
+        { unique: true, name: "uniq_order_number" }
+      );
+      await orders.createIndex(
+        { userId: 1, idempotencyKey: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { idempotencyKey: { $type: "string" } },
+          name: "uniq_user_order_idempotency",
+        }
+      );
+    })().catch((error) => {
+      delete global[ORDER_INDEXES_FLAG];
+      console.error("[orders] required order indexes could not be ensured:", error);
+      throw new ApiError(
+        "Order processing is temporarily unavailable. Please try again later.",
+        503,
+        "ORDER_INDEX_SETUP_FAILED"
+      );
+    });
+  }
+  await global[ORDER_INDEXES_FLAG];
+}
+
 /**
  * Order service - the heart of the store.
  *
@@ -235,6 +266,7 @@ export async function createOrder({
   source = "cart",
 }) {
   const { orders, settings, carts } = await collections();
+  await ensureOrderIndexes(orders);
 
   /* 1. Idempotency: identical re-submission returns the original order. */
   if (idempotencyKey) {
@@ -321,7 +353,10 @@ export async function createOrder({
     currency: storeSettings.currency,
     currencySymbol: storeSettings.currencySymbol,
     paymentMethod,
-    paymentStatus: PAYMENT_STATUS.UNPAID,
+    paymentStatus:
+      paymentMethod === PAYMENT_METHOD.JONOTA_PAY
+        ? PAYMENT_STATUS.PENDING
+        : PAYMENT_STATUS.UNPAID,
     paymentProvider:
       paymentMethod === PAYMENT_METHOD.JONOTA_PAY
         ? "jonota_pay"
@@ -390,14 +425,13 @@ export async function createOrder({
       }
     }
 
-    await releaseStock(rollback);
-
     if (error?.code === 11000) {
       // Rare order-number collision: retry once with a fresh number.
       order.orderNumber = generateOrderNumber(new Date());
       try {
         inserted = await orders.insertOne(order);
       } catch (retryError) {
+        await releaseStock(rollback);
         console.error("[checkout] retry insert failed:", retryError);
         throw new ApiError(
           "We could not save your order. Please try again.",
@@ -406,6 +440,7 @@ export async function createOrder({
         );
       }
     } else {
+      await releaseStock(rollback);
       console.error("[checkout] order insert failed:", error);
       throw new ApiError("We could not save your order. Please try again.", 500, "ORDER_SAVE_FAILED");
     }

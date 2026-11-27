@@ -14,7 +14,7 @@ import { useStore } from "@/components/providers/StoreProvider";
  * report success afterwards.
  */
 export default function ProductCard({ product, symbol = "৳", loading = false }) {
-  const { addToCart, toggleWishlist, isWishlistSaved, busy } = useStore();
+  const { addToCart, toggleWishlist, isWishlistSaved, busy, authLoading } = useStore();
 
   if (!product) return null;
 
@@ -119,7 +119,7 @@ export default function ProductCard({ product, symbol = "৳", loading = false }
         <button
           type="button"
           onClick={handleAdd}
-          disabled={busy || outOfStock}
+          disabled={busy || authLoading || outOfStock}
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-navy-950 px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-navy-800 disabled:cursor-not-allowed disabled:bg-navy-200"
         >
           <ShoppingCart className="h-4 w-4" />
@@ -129,4 +129,3 @@ export default function ProductCard({ product, symbol = "৳", loading = false }
     </div>
   );
 }
-

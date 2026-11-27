@@ -3,7 +3,7 @@ import { verifyStripeEvent } from "@/lib/stripe";
 import { collections, toObjectIdOrNull } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { scheduleJob } from "@/lib/jobs";
-import { PAYMENT_STATUS, ORDER_STATUS } from "@/lib/constants";
+import { PAYMENT_METHOD, PAYMENT_STATUS } from "@/lib/constants";
 
 /**
  * POST /api/webhooks/stripe
@@ -38,7 +38,10 @@ export const POST = handleApi(async (request) => {
     const orderNumber = session.metadata?.orderNumber || session.client_reference_id;
     if (!orderNumber) return ok({ received: true, skipped: "no_order_reference" });
 
-    const order = await orders.findOne({ orderNumber });
+    const order = await orders.findOne({
+      orderNumber,
+      paymentMethod: PAYMENT_METHOD.STRIPE,
+    });
     if (!order) return ok({ received: true, skipped: "order_not_found" });
 
     if (order.paymentStatus === PAYMENT_STATUS.PAID) {
@@ -108,6 +111,7 @@ export const POST = handleApi(async (request) => {
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object;
     const order = await orders.findOne({
+      paymentMethod: PAYMENT_METHOD.STRIPE,
       $or: [{ paymentReference: intent.id }, { transactionId: intent.id }],
     });
     if (order && order.paymentStatus !== PAYMENT_STATUS.PAID) {

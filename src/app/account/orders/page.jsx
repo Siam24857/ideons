@@ -117,7 +117,30 @@ export default async function AccountOrdersPage({ searchParams }) {
                     <td className="px-6 py-4 text-sm text-navy-500">
                       {formatDate(order.createdAt, { withTime: false })}
                     </td>
-                    <td className="px-6 py-4 text-sm text-navy-500">{order.itemsCount}</td>
+                    <td className="px-6 py-4 text-sm text-navy-500">
+                      <div className="flex min-w-[180px] items-center gap-3">
+                        {order.items?.[0]?.image ? (
+                          <img
+                            src={order.items[0].image}
+                            alt={order.items[0].title}
+                            className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 shrink-0 rounded-lg bg-navy-50" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="max-w-[200px] truncate font-medium text-navy-900">
+                            {order.items?.[0]?.title || `${order.itemsCount} item(s)`}
+                          </p>
+                          <p className="text-xs text-navy-500">
+                            {order.itemsCount} item(s)
+                            {order.items?.[0]?.quantity
+                              ? ` · first item qty ${order.items[0].quantity}`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-sm font-medium text-navy-900">
                       {formatMoney(order.total, order.currencySymbol)}
                     </td>
@@ -128,6 +151,11 @@ export default async function AccountOrdersPage({ searchParams }) {
                       <div className="flex flex-col items-start gap-1.5">
                         <MethodBadge method={order.paymentMethod} />
                         <PaymentBadge status={order.paymentStatus} />
+                        {order.paymentStatus === "paid" && order.paidAt && (
+                          <span className="text-[10px] text-navy-500">
+                            Paid {formatDate(order.paidAt)}
+                          </span>
+                        )}
                         {order.transactionId && (
                           <span className="max-w-[160px] truncate font-mono text-[10px] text-navy-400">
                             {order.transactionId}
@@ -178,4 +206,3 @@ export default async function AccountOrdersPage({ searchParams }) {
     </div>
   );
 }
-

@@ -18,7 +18,6 @@ export function serializeOrder(order) {
     orderStatus: order.orderStatus,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
-    paymentProvider: order.paymentProvider || null,
     paymentReference: order.paymentReference || null,
     transactionId: order.transactionId || null,
     paidAt: order.paidAt || null,

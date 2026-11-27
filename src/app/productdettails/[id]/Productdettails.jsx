@@ -1,8 +1,7 @@
 "use client";
 
-import { Addproducttocart } from "@/lib/Action/addcart";
-import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/components/providers/StoreProvider";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -19,11 +18,9 @@ import {
 
 export default function ProductDetails({ productDetails }) {
   const product = productDetails?.product ?? productDetails;
+  const router = useRouter();
 
-  // ✅ Hook top-level এ call করা হলো
-  const { data: session, isPending } = authClient.useSession();
-  const { addToCart } = useStore();
-  const userdata = session?.user;
+  const { addToCart, authLoading: isPending, user: userdata } = useStore();
 
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -110,12 +107,6 @@ export default function ProductDetails({ productDetails }) {
   };
 
   const handleAddToCart = async () => {
-    // ✅ Login check
-    if (!userdata) {
-      alert("Please login first to add items to cart.");
-      return;
-    }
-
     if (product.stock <= 0) {
       alert("This product is out of stock.");
       return;
@@ -123,31 +114,7 @@ export default function ProductDetails({ productDetails }) {
 
     try {
       setAdding(true);
-
-      // ✅ Cart data ঠিকভাবে তৈরি
-      const Cartdata = {
-        userId: userdata.id,              
-        name: userdata.name,
-        email: userdata.email,
-        productId: product._id,
-        productName: product.title,
-        productPrice: product.price,
-        productImage: product.images?.[0],  
-        quantity: quantity,                 
-        stock: product.stock,
-        category: product.category,
-        brand: product.brand,
-        seller: product.seller?.name ?? product.seller,
-      };
-
-      const Addcart = await Addproducttocart(Cartdata);
-      console.log("Cart response:", Addcart);
-
-      if (Addcart.acknowledged) {
-        alert("Added to cart successfully!");
-      } else {
-        alert(Addcart?.message || "Failed to add to cart.");
-      }
+      await addToCart({ productId: product._id, quantity });
     } catch (err) {
       console.error("Add to cart error:", err);
       alert("Something went wrong. Please try again.");
@@ -421,7 +388,7 @@ export default function ProductDetails({ productDetails }) {
             <div className="mt-7 flex gap-3">
               <button
                 onClick={handleAddToCart}
-                disabled={adding || product.stock <= 0}
+                disabled={adding || isPending || product.stock <= 0}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
               >
                 <FiShoppingCart />
@@ -430,25 +397,22 @@ export default function ProductDetails({ productDetails }) {
 
               <button
                 onClick={async () => {
-                  if (!userdata) {
-                    alert("Please login first to buy now.");
-                    return;
-                  }
                   if (product.stock <= 0) {
                     alert("This product is out of stock.");
                     return;
                   }
                   try {
-                    await addToCart({
+                    const result = await addToCart({
                       productId: product._id,
                       quantity: quantity,
                     });
-                    window.location.href = "/checkout";
+                    if (result.ok) router.push("/checkout");
                   } catch (err) {
                     alert("Failed to add product to cart. Please try again.");
                   }
                 }}
-                className="flex-1 relative rounded-lg border border-rose-500 px-5 py-3 font-semibold text-rose-600 bg-rose-50 overflow-hidden transition-all hover:scale-105 group"
+                disabled={adding || isPending || product.stock <= 0}
+                className="flex-1 relative rounded-lg border border-rose-500 px-5 py-3 font-semibold text-rose-600 bg-rose-50 overflow-hidden transition-all hover:scale-105 group disabled:cursor-not-allowed disabled:opacity-50"
                 style={{ boxShadow: "0 0 20px rgba(239, 68, 68, 0.4)" }}
               >
                 <div className="absolute inset-0 -z-10 bg-gradient-to-r from-rose-400 via-rose-600 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
