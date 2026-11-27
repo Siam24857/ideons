@@ -75,9 +75,22 @@ export const GET = handleApi(async () => {
   const byStatus = Object.fromEntries(ORDER_STATUS_LIST.map((s) => [s, 0]));
   for (const row of statusCounts) byStatus[row._id] = row.count;
 
-  const codCount = paymentCounts.find((p) => p._id.p === "cod")?.count || 0;
-  const onlineCount = paymentCounts.find((p) => p._id.p === "stripe")?.count || 0;
-  const paidCount = paymentCounts.find((p) => p._id.s === "paid")?.count || 0;
+  const countMethod = (method) =>
+    paymentCounts
+      .filter((p) => p._id.p === method)
+      .reduce((acc, p) => acc + p.count, 0);
+  const countStatus = (status) =>
+    paymentCounts
+      .filter((p) => p._id.s === status)
+      .reduce((acc, p) => acc + p.count, 0);
+
+  const codCount = countMethod("cod");
+  const stripeCount = countMethod("stripe");
+  const jonotaCount = countMethod("jonota_pay");
+  const onlineCount = stripeCount + jonotaCount;
+  const paidCount = countStatus("paid");
+  const pendingPaymentCount = countStatus("pending");
+  const failedPaymentCount = countStatus("failed");
 
   return ok({
     stats: {
@@ -95,8 +108,12 @@ export const GET = handleApi(async () => {
       codCollectible: codAgg[0]?.total || 0,
       codOrders: codAgg[0]?.count || codCount,
       codOrderCount: codCount,
+      stripeOrderCount: stripeCount,
+      jonotaOrderCount: jonotaCount,
       onlineOrderCount: onlineCount,
       paidOrderCount: paidCount,
+      pendingPaymentCount,
+      failedPaymentCount,
       lowStockCount: lowStock.length,
       productCount,
       activeProductCount,

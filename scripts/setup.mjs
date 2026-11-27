@@ -84,6 +84,18 @@ async function main() {
   idx.push(["orders.email", await ensureIndex(db.collection("orders"), { "customer.email": 1 })]);
   idx.push(["orders.phone", await ensureIndex(db.collection("orders"), { "shippingAddress.phone": 1 })]);
   idx.push(["orders.orderNumber+user", await ensureIndex(db.collection("orders"), { orderNumber: 1, userId: 1 })]);
+  idx.push([
+    "orders.transactionId",
+    await ensureIndex(
+      db.collection("orders"),
+      { transactionId: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { transactionId: { $type: "string" } },
+        name: "uniq_provider_transaction",
+      }
+    ),
+  ]);
 
   idx.push(["products.slug", await ensureIndex(db.collection("products"), { slug: 1 }, { unique: true, sparse: true })]);
   idx.push(["products.categorySlug", await ensureIndex(db.collection("products"), { categorySlug: 1 })]);
@@ -200,6 +212,7 @@ async function main() {
         freeDeliveryOver: 0,
         codEnabled: true,
         stripeEnabled: false,
+        jonotaPayEnabled: true,
         contactEmail: "",
         contactPhone: "",
         addressLine: "",

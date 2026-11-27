@@ -87,6 +87,12 @@ const SETTINGS_FIELDS = [
     type: "boolean",
     hint: "Requires STRIPE_SECRET_KEY to be configured.",
   },
+  {
+    key: "jonotaPayEnabled",
+    label: "Online payment (Jonota Pay) enabled",
+    type: "boolean",
+    hint: "Requires JONOTA_PAY_API_KEY to be configured on the server. Orders are only marked paid after the gateway verifies them.",
+  },
 ];
 
 export default function AdminSettingsPage() {

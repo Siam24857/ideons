@@ -18,7 +18,17 @@ export function serializeOrder(order) {
     orderStatus: order.orderStatus,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
+    paymentProvider: order.paymentProvider || null,
     paymentReference: order.paymentReference || null,
+    transactionId: order.transactionId || null,
+    paidAt: order.paidAt || null,
+    paymentVerification: order.paymentVerification || null,
+    canRetry:
+      order.paymentMethod === "jonota_pay" &&
+      order.paymentStatus !== "paid" &&
+      order.paymentStatus !== "refunded" &&
+      order.orderStatus !== "cancelled" &&
+      (!order.transactionId || order.paymentStatus === "failed"),
     total: order.total,
     subtotal: order.subtotal,
     discount: order.discount,

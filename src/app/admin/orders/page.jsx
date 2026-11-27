@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, LinkButton } from "@/components/ui/Buttons";
-import { Badge } from "@/components/ui/Badge";
-import { ORDER_STATUS_LIST, PAYMENT_METHOD_LIST, PAYMENT_STATUS_LIST } from "@/lib/constants";
+import { StatusBadge, PaymentBadge, MethodBadge } from "@/components/ui/Badge";
+import {
+  ORDER_STATUS_LIST,
+  PAYMENT_METHOD_LIST,
+  PAYMENT_STATUS_LIST,
+} from "@/lib/constants";
+import { paymentMethodLabel, paymentStatusLabel } from "@/lib/format";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -53,18 +58,6 @@ export default function AdminOrdersPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  const statusTone = (s) => {
-    const map = {
-      pending: "brand",
-      confirmed: "brand",
-      processing: "warning",
-      shipped: "info",
-      delivered: "success",
-      cancelled: "danger",
-    };
-    return map[s] || "neutral";
-  };
-
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -74,7 +67,7 @@ export default function AdminOrdersPage() {
             Manage every store order — search, filter, and update status.
           </p>
         </div>
-        <LinkButton href="/admin" variant="ghost" className="w-auto">
+        <LinkButton href="/admin" variant="secondary" className="w-auto">
           Back to dashboard
         </LinkButton>
       </div>
@@ -117,7 +110,7 @@ export default function AdminOrdersPage() {
               <option value="">All methods</option>
               {PAYMENT_METHOD_LIST.map((m) => (
                 <option key={m} value={m}>
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                  {paymentMethodLabel(m)}
                 </option>
               ))}
             </select>
@@ -132,7 +125,7 @@ export default function AdminOrdersPage() {
               <option value="">All payment statuses</option>
               {PAYMENT_STATUS_LIST.map((s) => (
                 <option key={s} value={s}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {paymentStatusLabel(s)}
                 </option>
               ))}
             </select>
@@ -184,21 +177,27 @@ export default function AdminOrdersPage() {
                     </Link>
                   </td>
                   <td className="px-6 py-4 text-sm text-navy-900">
-                    {o.customerName || "Customer"}
+                    {o.customer?.name || "Customer"}
                   </td>
                   <td className="px-6 py-4 text-sm text-navy-600 truncate max-w-[150px]">
-                    {o.customerEmail || "-"}
+                    {o.customer?.email || "-"}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-navy-900 text-right">
                     ৳{Number(o.total || 0).toLocaleString()}
                   </td>
                   <td className="px-6 py-4">
-                    <Badge tone={statusTone(o.orderStatus)}>
-                      {o.orderStatus.charAt(0).toUpperCase() + o.orderStatus.slice(1)}
-                    </Badge>
+                    <StatusBadge status={o.orderStatus} />
                   </td>
-                  <td className="px-6 py-4 text-sm text-navy-600">
-                    {o.paymentMethod.charAt(0).toUpperCase() + o.paymentMethod.slice(1)}
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <MethodBadge method={o.paymentMethod} />
+                      <PaymentBadge status={o.paymentStatus} />
+                      {o.transactionId && (
+                        <span className="max-w-[150px] truncate font-mono text-[10px] text-navy-400">
+                          {o.transactionId}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-navy-500 text-right">
                     {new Date(o.createdAt).toLocaleDateString("en-GB")}

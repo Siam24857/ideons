@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/session";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { settingsSchema } from "@/lib/validation";
 import { isStripeConfigured } from "@/lib/stripe";
+import { isJonotaPayConfigured } from "@/lib/jonota-pay";
 import { isMailConfigured } from "@/lib/mail";
 
 /**
@@ -16,6 +17,7 @@ export const GET = handleApi(async () => {
     settings,
     integrations: {
       stripeConfigured: isStripeConfigured(),
+      jonotaPayConfigured: isJonotaPayConfigured(),
       mailConfigured: isMailConfigured(),
       queueProvider: process.env.CRON_SECRET ? "cron" : "in-process-worker",
     },
@@ -29,6 +31,12 @@ export const PATCH = handleApi(async (request) => {
   if (body.stripeEnabled && !isStripeConfigured()) {
     throw badRequest(
       "Stripe is not configured. Set STRIPE_SECRET_KEY first, then enable it here."
+    );
+  }
+
+  if (body.jonotaPayEnabled && !isJonotaPayConfigured()) {
+    throw badRequest(
+      "Jonota Pay is not configured. Set JONOTA_PAY_API_KEY on the server first, then enable it here."
     );
   }
 
@@ -49,7 +57,11 @@ export const PATCH = handleApi(async (request) => {
 
   return ok({
     settings,
-    integrations: { stripeConfigured: isStripeConfigured(), mailConfigured: isMailConfigured() },
+    integrations: {
+      stripeConfigured: isStripeConfigured(),
+      jonotaPayConfigured: isJonotaPayConfigured(),
+      mailConfigured: isMailConfigured(),
+    },
   });
 });
 

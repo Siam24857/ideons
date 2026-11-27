@@ -84,12 +84,14 @@ export const CANCELLABLE_STATUSES = [
 export const PAYMENT_METHOD = {
   COD: "cod",
   STRIPE: "stripe",
+  JONOTA_PAY: "jonota_pay",
 };
 
 export const PAYMENT_METHOD_LIST = Object.values(PAYMENT_METHOD);
 
 export const PAYMENT_STATUS = {
   UNPAID: "unpaid",
+  PENDING: "pending",
   PAID: "paid",
   FAILED: "failed",
   REFUNDED: "refunded",
@@ -154,6 +156,8 @@ export const DEFAULT_SETTINGS = {
   codEnabled: true,
   /** Stripe availability - also requires STRIPE_SECRET_KEY to be configured. */
   stripeEnabled: false,
+  /** Jonota Pay availability - also requires JONOTA_PAY_API_KEY to be configured. */
+  jonotaPayEnabled: true,
   /** Business contact details are configurable until verified by the owner. */
   contactEmail: "siamtechofficial1597@gmail.com",
   contactPhone: "01804998164",

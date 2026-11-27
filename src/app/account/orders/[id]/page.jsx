@@ -3,8 +3,8 @@ import { getSession } from "@/lib/session";
 import { getOwnOrder, getAnyOrder } from "@/lib/orders";
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
-import { formatDate, orderStatusTone, orderStatusLabel } from "@/lib/format";
-import { Badge } from "@/components/ui/Badge";
+import { formatDate } from "@/lib/format";
+import { StatusBadge, PaymentBadge, MethodBadge } from "@/components/ui/Badge";
 import { Button, LinkButton } from "@/components/ui/Buttons";
 import { ORDER_STATUS } from "@/lib/constants";
 
@@ -32,6 +32,13 @@ export default async function OrderDetailsPage({ params }) {
     order.orderStatus
   );
 
+  const isJonota = order.paymentMethod === "jonota_pay";
+  const canCompletePayment =
+    isJonota &&
+    order.paymentStatus !== "paid" &&
+    order.paymentStatus !== "refunded" &&
+    order.orderStatus !== ORDER_STATUS.CANCELLED;
+
   return (
     <div className="min-h-screen bg-navy-50 py-8">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
@@ -51,33 +58,46 @@ export default async function OrderDetailsPage({ params }) {
           <div className="px-6 py-4 border-b border-navy-100 flex flex-wrap justify-between items-center gap-3 md:flex-nowrap">
             <div>
               <p className="text-xs text-navy-500 uppercase tracking-wider">Order status</p>
-              <Badge tone={orderStatusTone(order.orderStatus)}>
-                {orderStatusLabel(order.orderStatus)}
-              </Badge>
+              <StatusBadge status={order.orderStatus} />
             </div>
-            <div className="flex gap-2 text-right">
+            <div className="flex flex-wrap gap-4 text-right">
               <div>
                 <p className="text-xs text-navy-500">Total</p>
                 <p className="font-bold text-navy-950">
                   {formatMoney(order.total, order.currencySymbol)}
                 </p>
               </div>
-                  <div>
-                    <p className="text-xs text-navy-500">Payment</p>
-                    <p className="text-sm font-medium text-navy-900">
-                      {order.paymentMethod ? order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : '-'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-navy-500">Payment status</p>
-                    <p className={`text-sm font-medium ${
-                      order.paymentStatus === "paid" ? "text-emerald-600" : "text-navy-600"
-                    }`}>
-                      {order.paymentStatus ? order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1) : '-'}
-                    </p>
-                  </div>
+              <div>
+                <p className="text-xs text-navy-500">Payment</p>
+                <MethodBadge method={order.paymentMethod} />
+              </div>
+              <div>
+                <p className="text-xs text-navy-500">Payment status</p>
+                <PaymentBadge status={order.paymentStatus} />
+              </div>
             </div>
           </div>
+
+          {canCompletePayment && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-navy-100 bg-amber-50 px-6 py-4">
+              <div>
+                <p className="text-sm font-semibold text-navy-950">
+                  {order.paymentStatus === "pending"
+                    ? "Your online payment is not confirmed yet"
+                    : "Complete your online payment"}
+                </p>
+                <p className="text-xs text-navy-600">
+                  Your order is saved. Payment is only marked paid after the payment service verifies it.
+                </p>
+              </div>
+              <LinkButton
+                href={`/payment/verify?order=${encodeURIComponent(order.orderNumber)}`}
+                variant="brand"
+              >
+                {order.transactionId ? "Verify payment" : "Pay online"}
+              </LinkButton>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 py-6">
             {/* Items */}
@@ -157,6 +177,18 @@ export default async function OrderDetailsPage({ params }) {
                     </tr>
                   </tbody>
                 </table>
+
+                {(order.transactionId || order.paidAt) && (
+                  <div className="mt-4 space-y-1 border-t border-navy-100 pt-3 text-xs text-navy-500">
+                    {order.transactionId && (
+                      <p className="break-all">
+                        Transaction ID:{" "}
+                        <span className="font-mono text-navy-800">{order.transactionId}</span>
+                      </p>
+                    )}
+                    {order.paidAt && <p>Paid at: {formatDate(order.paidAt)}</p>}
+                  </div>
+                )}
               </div>
 
               {/* Shipping address */}

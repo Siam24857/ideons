@@ -1,4 +1,10 @@
-import { orderStatusTone, paymentStatusTone, orderStatusLabel, paymentMethodLabel } from "@/lib/format";
+import {
+  orderStatusTone,
+  paymentStatusTone,
+  orderStatusLabel,
+  paymentMethodLabel,
+  paymentStatusLabel,
+} from "@/lib/format";
 
 /** Pill badges used across order tables and detail screens. */
 export function StatusBadge({ status, className = "" }) {
@@ -13,11 +19,9 @@ export function StatusBadge({ status, className = "" }) {
 
 export function PaymentBadge({ status }) {
   const tone = paymentStatusTone(status);
-  const label =
-    status === "paid" ? "Paid" : status === "failed" ? "Failed" : status === "refunded" ? "Refunded" : "Unpaid";
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${tone}`}>
-      {label}
+      {paymentStatusLabel(status)}
     </span>
   );
 }

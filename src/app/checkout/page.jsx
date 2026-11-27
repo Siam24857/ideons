@@ -3,16 +3,23 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FiAlertCircle, FiLoader, FiCreditCard, FiMapPin, FiUser, FiPhone } from "react-icons/fi";
+import { FiAlertCircle, FiUser } from "react-icons/fi";
 import { api, errorMessage, getIdempotencyKey, clearIdempotencyKey } from "@/lib/api-client";
 import toast from "react-hot-toast";
 import { Button, LinkButton, Spinner } from "@/components/ui/Buttons";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Price } from "@/components/ui/Price";
 import { Badge } from "@/components/ui/Badge";
 import { formatMoney } from "@/lib/money";
 import { useStore } from "@/components/providers/StoreProvider";
 import { BANGLADESH_DIVISIONS } from "@/lib/constants";
+
+/* Customer-facing payment logos (exact assets supplied by the store owner).
+ * Keep these URLs verbatim; the online option is presented as bKash while the
+ * backend continues to use the existing provider integration. */
+const PAYMENT_LOGOS = {
+  cod: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJkDmQLvxRjFP5OWo4I3G9DX-bVO68uRaGutTlMWkD4Q&s=10",
+  bkash:
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSn1CM8Wb8bQ0y7fAMdfMHRSWV3yRpnH5V89pHEw4PC3g&s=10",
+};
 
 export default function CheckoutPage() {
   const { user, authLoading } = useStore();
@@ -21,7 +28,6 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [checkoutData, setCheckoutData] = useState(null);
   const [addresses, setAddresses] = useState([]);
-  const [addressError, setAddressError] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [newAddress, setNewAddress] = useState(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
@@ -150,7 +156,7 @@ export default function CheckoutPage() {
 
   const { cart, totals, settings, shippingAddress, division } = checkoutData;
   const codEnabled = settings?.codEnabled !== false;
-  const stripeEnabled = settings?.stripeEnabled === true;
+  const jonotaEnabled = settings?.jonotaPayEnabled === true;
   const currencySymbol = settings?.currencySymbol || "৳";
 
   const selectedAddress = addresses.find((a) => a._id === selectedAddressId);
@@ -222,7 +228,20 @@ export default function CheckoutPage() {
         return;
       }
 
-      const { order, duplicate, checkoutUrl } = result.data;
+      const { order, duplicate, checkoutUrl, paymentUrl, paymentError } = result.data;
+
+      if (paymentMethod === "jonota_pay") {
+        if (paymentUrl) {
+          window.location.href = paymentUrl;
+          return;
+        }
+        toast.error(
+          paymentError ||
+            "The payment link could not be created. Please retry from your order page."
+        );
+        router.push(`/account/orders/${order.orderNumber}`);
+        return;
+      }
 
       if (duplicate) {
         toast.info("This order was already placed.");
@@ -306,9 +325,26 @@ export default function CheckoutPage() {
     }
   };
 
-  const deliveryMethods = [
-    { label: "Cash on Delivery", value: "cod", enabled: codEnabled, icon: <FiMapPin className="h-4 w-4" /> },
-    { label: "Card (Stripe)", value: "stripe", enabled: stripeEnabled, icon: <FiCreditCard className="h-4 w-4" /> },
+  /* Exactly two customer-facing payment methods. The online option keeps the
+   * existing `jonota_pay` identifier internally so the backend integration,
+   * verification logic and credentials are unchanged. */
+  const paymentMethods = [
+    {
+      value: "cod",
+      label: "Cash on Delivery",
+      description: "Pay when you receive your order.",
+      logo: PAYMENT_LOGOS.cod,
+      logoAlt: "Cash on Delivery",
+      enabled: codEnabled,
+    },
+    {
+      value: "jonota_pay",
+      label: "বিকাশ পেমেন্ট",
+      description: "বিকাশের মাধ্যমে নিরাপদে অনলাইনে পেমেন্ট করুন।",
+      logo: PAYMENT_LOGOS.bkash,
+      logoAlt: "বিকাশ পেমেন্ট",
+      enabled: jonotaEnabled,
+    },
   ];
 
   return (
@@ -554,33 +590,61 @@ export default function CheckoutPage() {
             {/* Payment Method */}
             <div className="rounded-xl border border-navy-100 bg-white p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-bold text-navy-950">Payment Method</h2>
-              <div className="space-y-3">
-                {deliveryMethods.map((method) => {
-                  if (!method.enabled) return null;
+              <div className="space-y-3" role="radiogroup" aria-label="Payment method">
+                {paymentMethods.map((method) => {
+                  const selected = paymentMethod === method.value;
+                  const disabled = !method.enabled;
                   return (
                     <button
                       key={method.value}
                       type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-disabled={disabled}
+                      disabled={disabled}
                       onClick={() => setPaymentMethod(method.value)}
-                      className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-sm transition ${
-                        paymentMethod === method.value
-                          ? "border-blue-500 bg-blue-50 text-blue-600"
-                          : "border-navy-200 text-navy-700 hover:bg-navy-50"
-                      }`}
+                      className={`flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition ${
+                        selected
+                          ? "border-[#FFC928] bg-[#FFFBEA] shadow-sm ring-1 ring-[#FFC928]/40"
+                          : "border-navy-100 bg-white hover:border-navy-200 hover:bg-navy-50"
+                      } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                     >
-                      {method.icon}
-                      <div>
-                        <div className="font-medium">{method.label}</div>
-                        {method.value === "cod" ? (
-                          <div className="text-xs text-navy-500">Pay when you receive your order</div>
-                        ) : (
-                          <div className="text-xs text-navy-500">Secure online card payment</div>
+                      <span className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-navy-100 bg-white sm:h-14 sm:w-24">
+                        <img
+                          src={method.logo}
+                          alt={method.logoAlt}
+                          className="h-full w-full object-contain"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-navy-950">
+                          {method.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-navy-500">
+                          {method.description}
+                        </span>
+                        {disabled && (
+                          <span className="mt-1 block text-[11px] font-medium text-amber-700">
+                            বর্তমানে অনুপলব্ধ
+                          </span>
                         )}
-                      </div>
+                      </span>
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                          selected
+                            ? "border-[#123B69] bg-[#123B69]"
+                            : "border-navy-300 bg-white"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {selected && <span className="h-2 w-2 rounded-full bg-white" />}
+                      </span>
                     </button>
                   );
                 })}
-                {deliveryMethods.length === 0 && (
+                {paymentMethods.every((method) => !method.enabled) && (
                   <div className="text-xs text-navy-400">No payment methods available.</div>
                 )}
               </div>
@@ -620,7 +684,11 @@ export default function CheckoutPage() {
               variant="primary"
               size="lg"
               loading={submitting}
-              disabled={submitting || paymentMethod === "stripe" && !stripeEnabled}
+              disabled={
+                submitting ||
+                (paymentMethod === "cod" && !codEnabled) ||
+                (paymentMethod === "jonota_pay" && !jonotaEnabled)
+              }
               onClick={handleSubmit}
               className="w-full"
             >

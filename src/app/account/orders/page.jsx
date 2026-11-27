@@ -4,8 +4,8 @@ import { ORDER_STATUS_LIST } from "@/lib/constants";
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/format";
-import { Button, LinkButton } from "@/components/ui/Buttons";
-import { Badge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Buttons";
+import { StatusBadge, PaymentBadge, MethodBadge } from "@/components/ui/Badge";
 import Pagination from "@/components/ui/Pagination";
 import EmptyState from "@/components/ui/EmptyState";
 import { FiPackage } from "react-icons/fi";
@@ -122,19 +122,41 @@ export default async function AccountOrdersPage({ searchParams }) {
                       {formatMoney(order.total, order.currencySymbol)}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge status={order.orderStatus} />
+                      <StatusBadge status={order.orderStatus} />
                     </td>
-                    <td className="px-6 py-4 text-sm text-navy-500">
-                      {order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1)}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <MethodBadge method={order.paymentMethod} />
+                        <PaymentBadge status={order.paymentStatus} />
+                        {order.transactionId && (
+                          <span className="max-w-[160px] truncate font-mono text-[10px] text-navy-400">
+                            {order.transactionId}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <LinkButton
-                        href={`/account/orders/${order.orderNumber || order._id}`}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        View
-                      </LinkButton>
+                      <div className="flex flex-col items-end gap-1">
+                        {order.paymentMethod === "jonota_pay" &&
+                          order.paymentStatus !== "paid" &&
+                          order.paymentStatus !== "refunded" &&
+                          order.orderStatus !== "cancelled" && (
+                            <LinkButton
+                              href={`/payment/verify?order=${encodeURIComponent(order.orderNumber)}`}
+                              variant="brand"
+                              size="sm"
+                            >
+                              {order.transactionId ? "Verify payment" : "Pay online"}
+                            </LinkButton>
+                          )}
+                        <LinkButton
+                          href={`/account/orders/${order.orderNumber || order._id}`}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          View
+                        </LinkButton>
+                      </div>
                     </td>
                   </tr>
                 ))}

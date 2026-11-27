@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, LinkButton } from "@/components/ui/Buttons";
-import { Badge } from "@/components/ui/Badge";
-import { FiHome, FiPackage, FiUser, FiSettings, FiDollarSign, FiTrash2, FiAlertCircle } from "react-icons/fi";
+import { StatusBadge, PaymentBadge, MethodBadge } from "@/components/ui/Badge";
+import { FiPackage, FiDollarSign, FiAlertCircle, FiCreditCard, FiSmartphone } from "react-icons/fi";
 
 const Stat = ({ label, value, icon: Icon, tone = "neutral" }) => (
   <div className="rounded-xl border border-navy-100 bg-white p-5 shadow-sm">
@@ -40,13 +40,15 @@ export default function AdminDashboardPage() {
     ])
       .then(([s, o]) => Promise.all([s.json(), o.json()]))
       .then(([sd, od]) => {
-        setStats(sd.settings || {});
+        setStats(sd.stats || {});
         setRecentOrders((od.items || []).map((o) => ({
           orderNumber: o.orderNumber,
           customerName: o.customer?.name || "Customer",
           total: o.total,
           orderStatus: o.orderStatus,
+          paymentMethod: o.paymentMethod,
           paymentStatus: o.paymentStatus,
+          transactionId: o.transactionId,
           createdAt: o.createdAt,
         })));
       })
@@ -116,13 +118,29 @@ export default function AdminDashboardPage() {
           icon={FiPackage}
         />
         <Stat
+          label="Online orders"
+          value={s.onlineOrderCount ?? 0}
+          icon={FiCreditCard}
+        />
+        <Stat
+          label="Pending payments"
+          value={s.pendingPaymentCount ?? 0}
+          icon={FiAlertCircle}
+          tone="warning"
+        />
+        <Stat
+          label="Jonota Pay orders"
+          value={s.jonotaOrderCount ?? 0}
+          icon={FiSmartphone}
+        />
+        <Stat
           label="Cancelled orders"
           value={s.cancelled ?? 0}
           icon={FiAlertCircle}
         />
         <Stat
           label="Low-stock products"
-          value={s.lowStock ?? 0}
+          value={s.lowStockCount ?? 0}
           icon={FiAlertCircle}
           tone="warning"
         />
@@ -164,24 +182,18 @@ export default function AdminDashboardPage() {
                       ৳{Number(o.total || 0).toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge
-                        tone={
-                          o.orderStatus === "delivered"
-                            ? "success"
-                            : o.orderStatus === "cancelled"
-                              ? "danger"
-                              : o.orderStatus === "shipped"
-                                ? "info"
-                                : o.orderStatus === "processing"
-                                  ? "warning"
-                                  : "brand"
-                        }
-                      >
-                        {o.orderStatus.charAt(0).toUpperCase() + o.orderStatus.slice(1)}
-                      </Badge>
+                      <StatusBadge status={o.orderStatus} />
                     </td>
-                    <td className="px-6 py-4 text-sm text-navy-600">
-                      {o.paymentStatus.charAt(0).toUpperCase() + o.paymentStatus.slice(1)}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <MethodBadge method={o.paymentMethod} />
+                        <PaymentBadge status={o.paymentStatus} />
+                        {o.transactionId && (
+                          <span className="max-w-[150px] truncate font-mono text-[10px] text-navy-400">
+                            {o.transactionId}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Link
@@ -207,9 +219,9 @@ export default function AdminDashboardPage() {
 
       <div className="mt-8 flex gap-4">
         <LinkButton href="/admin/orders" variant="brand">All Orders</LinkButton>
-        <LinkButton href="/admin/users" variant="ghost">Customers</LinkButton>
-        <LinkButton href="/admin/products" variant="ghost">Products</LinkButton>
-        <LinkButton href="/admin/settings" variant="ghost">Settings</LinkButton>
+        <LinkButton href="/admin/users" variant="secondary">Customers</LinkButton>
+        <LinkButton href="/admin/products" variant="secondary">Products</LinkButton>
+        <LinkButton href="/admin/settings" variant="secondary">Settings</LinkButton>
       </div>
     </div>
   );

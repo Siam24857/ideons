@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/session";
 import { collections, toObjectIdOrNull } from "@/lib/db";
 import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
+import { PAYMENT_METHOD, PAYMENT_STATUS } from "@/lib/constants";
 
 const paymentSchema = z.object({
   paymentStatus: z.enum(["unpaid", "paid", "failed", "refunded"]),
@@ -25,6 +26,19 @@ export const PATCH = handleApi(async (request, { params }) => {
 
   const body = paymentSchema.parse(await readJson(request));
   const current = order.paymentStatus || "unpaid";
+
+  /* Jonota Pay is gateway-verified. A manual click is not proof of payment, so
+   * admins must use the dedicated verify-payment endpoint instead. */
+  if (order.paymentMethod === PAYMENT_METHOD.JONOTA_PAY) {
+    if (body.paymentStatus === PAYMENT_STATUS.PAID) {
+      throw badRequest(
+        "Jonota Pay orders can only be marked paid after the gateway verifies the transaction. Use “Verify payment” instead."
+      );
+    }
+    if (current === PAYMENT_STATUS.PAID) {
+      throw badRequest("This Jonota Pay order is already paid and cannot be changed manually.");
+    }
+  }
 
   // Prevent duplicate payment confirmation
   if (current === "paid" && body.paymentStatus === "paid") {

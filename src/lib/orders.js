@@ -3,6 +3,7 @@ import { ApiError, notFound, badRequest, conflict } from "@/lib/api";
 import {
   ORDER_STATUS,
   ORDER_STATUS_TRANSITIONS,
+  ORDER_STATUS_NOTIFICATION,
   CANCELLABLE_STATUSES,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
@@ -249,6 +250,9 @@ export async function createOrder({
   if (paymentMethod === PAYMENT_METHOD.STRIPE && !storeSettings.stripeEnabled) {
     throw badRequest("Online card payment is not enabled yet.");
   }
+  if (paymentMethod === PAYMENT_METHOD.JONOTA_PAY && storeSettings.jonotaPayEnabled === false) {
+    throw badRequest("Online payment is currently disabled. Please choose Cash on Delivery.");
+  }
 
   /* 2. Resolve line items from MongoDB (never from the client payload). */
   const lineItems = [];
@@ -317,9 +321,19 @@ export async function createOrder({
     currency: storeSettings.currency,
     currencySymbol: storeSettings.currencySymbol,
     paymentMethod,
-    paymentStatus: paymentMethod === PAYMENT_METHOD.COD ? PAYMENT_STATUS.UNPAID : PAYMENT_STATUS.UNPAID,
+    paymentStatus: PAYMENT_STATUS.UNPAID,
+    paymentProvider:
+      paymentMethod === PAYMENT_METHOD.JONOTA_PAY
+        ? "jonota_pay"
+        : paymentMethod === PAYMENT_METHOD.STRIPE
+          ? "stripe"
+          : "cod",
     paymentReference: null,
     transactionId: null,
+    paymentUrl: null,
+    paymentVerification: null,
+    paymentInitializedAt: null,
+    paidAt: null,
     orderStatus: ORDER_STATUS.PENDING,
     source,
     notes: notes ? [{ note: notes, at: now, by: "customer" }] : [],
@@ -484,13 +498,18 @@ export async function applyStatusChange({
     if (!CANCELLABLE_STATUSES.includes(order.orderStatus)) {
       throw badRequest("This order can no longer be cancelled.");
     }
-    const { products } = await collections();
-    for (const item of order.items || []) {
-      await products.updateOne(
-        { _id: toObjectIdOrNull(item.productId) },
-        { $inc: { stock: item.quantity, sold: -item.quantity } }
-      );
-    }
+    /* Return every reserved unit exactly once. Variant-aware products restore
+     * their own option counter instead of the base stock. */
+    await releaseStock(
+      (order.items || [])
+        .map((item) => ({
+          objectId: toObjectIdOrNull(item.productId),
+          quantity: item.quantity,
+          variantName: item.variant?.name || null,
+          variantValue: item.variant?.value || null,
+        }))
+        .filter((reservation) => reservation.objectId && reservation.quantity > 0)
+    );
   }
 
   const historyEntry = {
@@ -541,7 +560,7 @@ export async function applyStatusChange({
   try {
     const notification = await createNotification({
       userId: order.userId,
-      type: isCancel ? "order_cancelled" : status,
+      type: isCancel ? "order_cancelled" : ORDER_STATUS_NOTIFICATION[status] || status,
       order: result,
       dedupeKey: `${status}_${order.orderNumber}`,
       ...(customerMessage ? { body: customerMessage } : {}),

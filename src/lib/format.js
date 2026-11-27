@@ -80,14 +80,28 @@ export function paymentStatusTone(status) {
       return "bg-rose-100 text-rose-700 border-rose-200";
     case "refunded":
       return "bg-blue-100 text-blue-700 border-blue-200";
+    case "pending":
+      return "bg-amber-100 text-amber-800 border-amber-200";
     default:
       return "bg-amber-100 text-amber-800 border-amber-200";
   }
 }
 
+export function paymentStatusLabel(status) {
+  const map = {
+    paid: "Paid",
+    failed: "Failed",
+    refunded: "Refunded",
+    pending: "Pending",
+    unpaid: "Unpaid",
+  };
+  return map[status] || status || "-";
+}
+
 export function paymentMethodLabel(method) {
   if (method === "cod") return "Cash on Delivery";
   if (method === "stripe") return "Card (Stripe)";
+  if (method === "jonota_pay") return "বিকাশ পেমেন্ট";
   return method || "-";
 }
 

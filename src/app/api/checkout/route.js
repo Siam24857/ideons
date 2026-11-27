@@ -1,11 +1,17 @@
-import { handleApi, ok, created, readJson, qp, badRequest } from "@/lib/api";
+import { handleApi, ok, created, readJson, qp, badRequest, ApiError } from "@/lib/api";
 import { requireUser } from "@/lib/session";
 import { collections, toObjectIdOrNull } from "@/lib/db";
 import { checkoutSchema } from "@/lib/validation";
 import { getCart } from "@/lib/cart";
 import { createOrder, calculateTotals } from "@/lib/orders";
+import { resolveCheckoutItems } from "@/lib/checkout";
 import { getSettings } from "@/lib/settings";
 import { createCheckoutSession, isStripeConfigured } from "@/lib/stripe";
+import {
+  createJonotaPayment,
+  getPublicBaseUrl,
+  isJonotaPayConfigured,
+} from "@/lib/jonota-pay";
 import { assertRateLimit } from "@/lib/rate-limit";
 
 /**
@@ -65,6 +71,7 @@ export const GET = handleApi(async (request) => {
     settings: {
       codEnabled: settings.codEnabled,
       stripeEnabled: Boolean(settings.stripeEnabled && isStripeConfigured()),
+      jonotaPayEnabled: Boolean(settings.jonotaPayEnabled !== false && isJonotaPayConfigured()),
       currencySymbol: settings.currencySymbol,
       deliveryChargeInsideDhaka: settings.deliveryChargeInsideDhaka,
       deliveryChargeOutsideDhaka: settings.deliveryChargeOutsideDhaka,
@@ -81,23 +88,7 @@ export const POST = handleApi(async (request) => {
   const settings = await getSettings();
 
   /* Resolve the item list: explicit items (Buy Now) or the account cart. */
-  let items = body.items;
-  let source = "buy-now";
-  if (!items || !items.length) {
-    const cart = await getCart(user.id);
-    if (!cart.items.length) throw badRequest("Your cart is empty.");
-    items = cart.items
-      .filter((i) => i.availability === "ok")
-      .map((i) => ({
-        productId: i.productId,
-        quantity: i.quantity,
-        variant: i.variant || undefined,
-      }));
-    if (!items.length) {
-      throw badRequest("None of the items in your cart can be ordered right now.");
-    }
-    source = "cart";
-  }
+  const { items, source } = await resolveCheckoutItems(user.id, body.items);
 
   const { order, duplicate } = await createOrder({
     user,
@@ -138,6 +129,44 @@ export const POST = handleApi(async (request) => {
     } catch (error) {
       console.error("[checkout] stripe session failed:", error.message);
       throw badRequest("Could not start the online payment. Please try Cash on Delivery.");
+    }
+  }
+
+  /* Online payment via Jonota Pay: a server-created hosted payment link. */
+  if (body.paymentMethod === "jonota_pay") {
+    if (!settings.jonotaPayEnabled || !isJonotaPayConfigured()) {
+      throw badRequest("Online payment is not available on this store right now.");
+    }
+    if (order.paymentStatus === "paid") {
+      return ok({ order: summarize(order), duplicate, alreadyPaid: true });
+    }
+
+    /* A duplicate submission should reuse the link that already exists, but
+     * never when a transaction is already attached - that order must be
+     * verified instead of paid a second time. */
+    if (duplicate && order.paymentUrl && !order.transactionId) {
+      return ok({ order: summarize(order), duplicate, paymentUrl: order.paymentUrl });
+    }
+
+    try {
+      const { paymentUrl, order: updated } = await createJonotaPayment({
+        order,
+        baseUrl: getPublicBaseUrl(request),
+      });
+      return created({ order: summarize(updated), duplicate, paymentUrl });
+    } catch (error) {
+      /* The order was already created and stock reserved. Do not hide it from
+       * the customer - return the order plus a retryable payment error. */
+      if (!(error instanceof ApiError)) {
+        console.error("[checkout] jonota payment init failed:", error);
+      }
+      return created({
+        order: summarize(order),
+        duplicate,
+        paymentError:
+          error?.message ||
+          "The online payment could not be started. You can retry from your order page.",
+      });
     }
   }
 

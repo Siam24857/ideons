@@ -3,7 +3,8 @@ import { collections } from "@/lib/db";
 import { ORDER_STATUS } from "@/lib/constants";
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
-import { Button, LinkButton } from "@/components/ui/Buttons";
+import { LinkButton } from "@/components/ui/Buttons";
+import { StatusBadge, PaymentBadge, MethodBadge } from "@/components/ui/Badge";
 import { getCart } from "@/lib/cart";
 
 export const dynamic = "force-dynamic";
@@ -106,15 +107,22 @@ export default async function AccountOverviewPage() {
                     {order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                   </p>
                 </div>
-                <div className="ml-4 flex items-end gap-2 sm:ml-0 sm:justify-end">
-                  <span className="text-sm font-medium text-navy-900">
-                    {formatMoney(order.total)}
-                  </span>
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusTone(order.orderStatus)}`}
-                  >
-                    {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-                  </span>
+                <div className="ml-4 flex flex-col items-end gap-1.5 sm:ml-0 sm:justify-end">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-navy-900">
+                      {formatMoney(order.total, order.currencySymbol)}
+                    </span>
+                    <StatusBadge status={order.orderStatus} />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <MethodBadge method={order.paymentMethod} />
+                    <PaymentBadge status={order.paymentStatus} />
+                  </div>
+                  {order.transactionId && (
+                    <span className="max-w-[180px] truncate font-mono text-[10px] text-navy-400">
+                      {order.transactionId}
+                    </span>
+                  )}
                 </div>
               </div>
             ))
@@ -169,18 +177,6 @@ function OverviewCard({ title, value, icon, description, href }) {
       )}
     </>
   );
-}
-
-function statusTone(status) {
-  const map = {
-    pending: "bg-amber-100 text-amber-800 border-amber-200",
-    confirmed: "bg-indigo-100 text-indigo-700 border-indigo-200",
-    processing: "bg-amber-100 text-amber-800 border-amber-200",
-    shipped: "bg-blue-100 text-blue-700 border-blue-200",
-    delivered: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    cancelled: "bg-rose-100 text-rose-700 border-rose-200",
-  };
-  return map[status] || "bg-gray-100 text-gray-700 border-gray-200";
 }
 
 async function getOrderCounts(userId) {

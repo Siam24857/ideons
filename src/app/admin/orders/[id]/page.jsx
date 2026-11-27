@@ -3,20 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, LinkButton } from "@/components/ui/Buttons";
-import { Badge } from "@/components/ui/Badge";
-import { ORDER_STATUS, ORDER_STATUS_TRANSITIONS } from "@/lib/constants";
-
-const statusTone = (s) => {
-  const map = {
-    pending: "brand",
-    confirmed: "brand",
-    processing: "warning",
-    shipped: "info",
-    delivered: "success",
-    cancelled: "danger",
-  };
-  return map[s] || "neutral";
-};
+import { StatusBadge, PaymentBadge, MethodBadge } from "@/components/ui/Badge";
+import { ORDER_STATUS_TRANSITIONS } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
 
 export default function AdminOrderDetailsPage({ params }) {
   const [order, setOrder] = useState(null);
@@ -47,7 +36,7 @@ export default function AdminOrderDetailsPage({ params }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [params]);
 
   useEffect(() => {
     loadOrder();
@@ -118,6 +107,44 @@ export default function AdminOrderDetailsPage({ params }) {
       setSaving(false);
     }
   };
+  const verifyPayment = async () => {
+    if (!order || saving) return;
+    let transactionId = order.transactionId || "";
+    if (!transactionId) {
+      transactionId = window.prompt(
+        "Enter the Jonota Pay transaction id from the gateway dashboard:"
+      ) || "";
+      if (!transactionId.trim()) return;
+    }
+    setSaving(true);
+    try {
+      const result = await fetch(
+        `/api/admin/orders/${encodeURIComponent(order.orderNumber)}/verify-payment`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionId: transactionId.trim() }),
+        }
+      );
+      const data = await result.json().catch(() => ({}));
+      if (result.ok) {
+        await loadOrder();
+        alert(
+          data.paid
+            ? "Payment verified. The order is now marked as paid."
+            : `The gateway reported the payment as "${data.verification?.status || "unknown"}". The order was not marked paid.`
+        );
+      } else {
+        alert(data.message || "The gateway could not verify this payment.");
+      }
+    } catch (error) {
+      alert("Network error while verifying payment.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const markAsDelivered = async () => {
     if (!order || saving) return;
 
@@ -192,7 +219,7 @@ export default function AdminOrderDetailsPage({ params }) {
           </p>
         </div>
         <div className="flex items-end gap-2">
-          <LinkButton href="/admin/orders" variant="ghost" className="w-auto">
+          <LinkButton href="/admin/orders" variant="secondary" className="w-auto">
             Back to orders
           </LinkButton>
         </div>
@@ -203,21 +230,15 @@ export default function AdminOrderDetailsPage({ params }) {
         <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <div>
             <p className="text-xs font-medium text-navy-500 uppercase">Order status</p>
-            <Badge tone={statusTone(order.orderStatus)}>
-              {order.orderStatus ? order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1) : '-'}
-            </Badge>
+            <StatusBadge status={order.orderStatus} />
           </div>
           <div>
             <p className="text-xs font-medium text-navy-500 uppercase">Payment status</p>
-            <Badge tone="neutral">
-              {order.paymentStatus ? order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1) : '-'}
-            </Badge>
+            <PaymentBadge status={order.paymentStatus} />
           </div>
           <div>
             <p className="text-xs font-medium text-navy-500 uppercase">Payment method</p>
-            <span className="text-sm text-navy-900">
-              {order.paymentMethod ? order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : '-'}
-            </span>
+            <MethodBadge method={order.paymentMethod} />
           </div>
           <div>
             <p className="text-xs font-medium text-navy-500 uppercase">Order date</p>
@@ -442,6 +463,44 @@ export default function AdminOrderDetailsPage({ params }) {
                   {order.paymentReference || "-"}
                 </td>
               </tr>
+              <tr>
+                <td className="py-3 text-navy-600">Transaction ID</td>
+                <td className="py-3 text-navy-800 text-right font-mono text-xs break-all">
+                  {order.transactionId || "-"}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 text-navy-600">Payment provider</td>
+                <td className="py-3 text-navy-600 text-right">
+                  {order.paymentProvider || "-"}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 text-navy-600">Paid at</td>
+                <td className="py-3 text-navy-600 text-right">
+                  {order.paidAt ? formatDate(order.paidAt) : "-"}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-3 text-navy-600">Last gateway check</td>
+                <td className="py-3 text-navy-600 text-right">
+                  {order.paymentVerification
+                    ? `${order.paymentVerification.status || "-"}${
+                        order.paymentVerification.providerStatus
+                          ? ` (${order.paymentVerification.providerStatus})`
+                          : ""
+                      }${order.paymentVerification.verifiedAt ? ` · ${formatDate(order.paymentVerification.verifiedAt)}` : ""}`
+                    : "-"}
+                </td>
+              </tr>
+              {order.paymentVerification?.message && (
+                <tr>
+                  <td className="py-3 text-amber-700">Verification note</td>
+                  <td className="py-3 text-amber-700 text-right">
+                    {order.paymentVerification.message}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -518,15 +577,31 @@ export default function AdminOrderDetailsPage({ params }) {
                 >
                   Mark as Delivered
                 </Button>
-                <Button
-                  variant="brand"
-                  onClick={markAsPaid}
-                  loading={saving}
-                  disabled={saving || order.paymentStatus === "paid"}
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                >
-                  Mark as Paid
-                </Button>
+                {order.paymentMethod === "jonota_pay" ? (
+                  <Button
+                    variant="brand"
+                    onClick={verifyPayment}
+                    loading={saving}
+                    disabled={
+                      saving ||
+                      order.paymentStatus === "paid" ||
+                      order.orderStatus === "cancelled"
+                    }
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {order.paymentStatus === "paid" ? "Payment verified" : "Verify payment"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="brand"
+                    onClick={markAsPaid}
+                    loading={saving}
+                    disabled={saving || order.paymentStatus === "paid"}
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    Mark as Paid
+                  </Button>
+                )}
                 {allowedNext.length === 0 && (
                   <span className="mt-2 text-xs text-navy-500">
                     No further transitions available for this status.

@@ -243,6 +243,7 @@ export const settingsSchema = z.object({
   freeDeliveryOver: z.coerce.number().min(0),
   codEnabled: z.coerce.boolean(),
   stripeEnabled: z.coerce.boolean(),
+  jonotaPayEnabled: z.coerce.boolean(),
   contactEmail: z.string().trim().max(254).optional().or(z.literal("")),
   contactPhone: z.string().trim().max(30).optional().or(z.literal("")),
   addressLine: z.string().trim().max(300).optional().or(z.literal("")),
