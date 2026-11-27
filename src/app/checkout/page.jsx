@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiAlertCircle, FiUser } from "react-icons/fi";
@@ -21,9 +21,19 @@ const PAYMENT_LOGOS = {
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSn1CM8Wb8bQ0y7fAMdfMHRSWV3yRpnH5V89pHEw4PC3g&s=10",
 };
 
+function subscribeToLocation(callback) {
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+
+function getLocationSearch() {
+  return window.location.search;
+}
+
 export default function CheckoutPage() {
   const { user, authLoading } = useStore();
   const router = useRouter();
+  const locationSearch = useSyncExternalStore(subscribeToLocation, getLocationSearch, () => "");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [checkoutData, setCheckoutData] = useState(null);
@@ -49,16 +59,41 @@ export default function CheckoutPage() {
   });
 
   const idempotencyKey = getIdempotencyKey();
+  const { buyNowItems, buyNowError } = useMemo(() => {
+    const params = new URLSearchParams(locationSearch);
+    const productId = params.get("buyNowProductId");
+    const rawQuantity = params.get("quantity");
+
+    if (!productId && !rawQuantity) return { buyNowItems: null, buyNowError: "" };
+    if (!productId || !rawQuantity || !/^\d+$/.test(rawQuantity)) {
+      return {
+        buyNowItems: null,
+        buyNowError: "The Buy Now product or quantity is invalid. Return to the product page and try again.",
+      };
+    }
+
+    const quantity = Number(rawQuantity);
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 50) {
+      return {
+        buyNowItems: null,
+        buyNowError: "Quantity must be between 1 and 50. Return to the product page and try again.",
+      };
+    }
+    return { buyNowItems: [{ productId, quantity }], buyNowError: "" };
+  }, [locationSearch]);
 
   const loadCheckout = useCallback(async () => {
     if (!user) return null;
     try {
-      const result = await api.get("/api/checkout");
+      const query = buyNowItems
+        ? `?buyNowProductId=${encodeURIComponent(buyNowItems[0].productId)}&quantity=${buyNowItems[0].quantity}`
+        : "";
+      const result = await api.get(`/api/checkout${query}`);
       return result;
     } catch {
       return null;
     }
-  }, [user]);
+  }, [buyNowItems, user]);
 
   const loadAddresses = useCallback(async () => {
     if (!user) return null;
@@ -73,6 +108,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
     if (authLoading) return;
+    if (buyNowError) return;
 
     async function load() {
       if (!user) {
@@ -90,8 +126,9 @@ export default function CheckoutPage() {
       if (checkoutRes?.ok) {
         setCheckoutData(checkoutRes.data);
       } else {
-        toast.error("Failed to load checkout details.");
-        router.push("/cart");
+        const message = errorMessage(checkoutRes);
+        setFormError(message);
+        toast.error(message);
       }
 
       if (addressesRes?.ok) {
@@ -106,9 +143,9 @@ export default function CheckoutPage() {
 
     load();
     return () => { cancelled = true; };
-  }, [user, authLoading, loadCheckout, loadAddresses, router]);
+  }, [user, authLoading, buyNowError, loadCheckout, loadAddresses, router]);
 
-  if (authLoading || loading) {
+  if (authLoading || (loading && !buyNowError && !formError)) {
     return (
       <div className="flex min-h-[600px] items-center justify-center">
         <Spinner label="Loading checkout" />
@@ -139,16 +176,18 @@ export default function CheckoutPage() {
     return (
       <div className="flex min-h-[600px] flex-col items-center justify-center rounded-2xl border border-dashed border-navy-200 bg-white px-6 py-14 text-center">
         <FiAlertCircle size={55} className="text-navy-300 mb-4" />
-        <h2 className="text-2xl font-bold text-navy-900">Your cart is empty</h2>
+        <h2 className="text-2xl font-bold text-navy-900">
+          {buyNowError || formError ? "Unable to load checkout" : "Your cart is empty"}
+        </h2>
         <p className="mt-2 text-sm text-navy-500">
-          Add some products before checking out.
+          {buyNowError || formError || "Add some products before checking out."}
         </p>
         <LinkButton
-          href="/products"
+          href="/cart"
           variant="primary"
           className="mt-5"
         >
-          Browse products
+          Return to Cart
         </LinkButton>
       </div>
     );
@@ -215,6 +254,7 @@ export default function CheckoutPage() {
     try {
       const result = await api.post("/api/checkout", {
         idempotencyKey,
+        items: buyNowItems || undefined,
         addressId: addressIdPayload,
         address: usingNewAddress ? addressPayload : undefined,
         paymentMethod,
@@ -706,4 +746,3 @@ export default function CheckoutPage() {
 }
 
 export const dynamic = "force-dynamic";
-

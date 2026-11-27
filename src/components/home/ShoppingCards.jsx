@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Flame,
@@ -137,9 +138,22 @@ export default function ShoppingCards({ products = [], symbol = "৳" }) {
 }
 
 function ShoppingCard({ card, products = [], symbol }) {
+  const router = useRouter();
+
   return (
-    <Link
-      href={card.href}
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={(event) => {
+        if (event.target.closest("a, button")) return;
+        router.push(card.href);
+      }}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          router.push(card.href);
+        }
+      }}
       className="group block rounded-xl border border-[#EAEDED] bg-white p-6 shadow-sm transition hover:border-[#FFC928] hover:shadow-xl"
     >
       <div className="flex items-center justify-between mb-4">
@@ -202,7 +216,7 @@ function ShoppingCard({ card, products = [], symbol }) {
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
-    </Link>
+    </div>
   );
 }
 

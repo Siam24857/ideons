@@ -13,6 +13,7 @@ import {
   isJonotaPayConfigured,
 } from "@/lib/jonota-pay";
 import { assertRateLimit } from "@/lib/rate-limit";
+import { effectivePrice, multiply, round2 } from "@/lib/money";
 
 /**
  * GET  /api/checkout - live preview of the order totals (from the cart)
@@ -22,7 +23,54 @@ import { assertRateLimit } from "@/lib/rate-limit";
 export const GET = handleApi(async (request) => {
   const user = await requireUser();
   const settings = await getSettings();
-  const cart = await getCart(user.id);
+  let cart;
+  const buyNowProductId = qp(request, "buyNowProductId");
+  const rawQuantity = qp(request, "quantity");
+
+  if (buyNowProductId || rawQuantity) {
+    if (!buyNowProductId || !/^\d+$/.test(String(rawQuantity || ""))) {
+      throw badRequest("Invalid Buy Now item.");
+    }
+    const quantity = Number(rawQuantity);
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 50) {
+      throw badRequest("Quantity must be between 1 and 50.");
+    }
+    const productObjectId = toObjectIdOrNull(buyNowProductId);
+    if (!productObjectId) throw badRequest("Invalid product.");
+
+    const { products } = await collections();
+    const product = await products.findOne({ _id: productObjectId });
+    if (!product || product.isActive === false) {
+      throw badRequest("This product is no longer available.");
+    }
+    const stock = Number(product.stock) || 0;
+    if (quantity > stock) {
+      throw badRequest(`Only ${stock} unit(s) are available.`);
+    }
+
+    const unitPrice = effectivePrice(product);
+    const regularPrice = Math.max(round2(Number(product.oldPrice) || 0), round2(Number(product.price) || 0));
+    const lineTotal = multiply(unitPrice, quantity);
+    cart = {
+      items: [{
+        _id: String(product._id),
+        productId: String(product._id),
+        title: product.title,
+        slug: product.slug || "",
+        image: Array.isArray(product.images) ? product.images[0] || "" : product.images || "",
+        sku: product.sku || "",
+        unitPrice,
+        regularPrice,
+        quantity,
+        lineTotal,
+      }],
+      subtotal: lineTotal,
+      itemsCount: quantity,
+      hasIssues: false,
+    };
+  } else {
+    cart = await getCart(user.id);
+  }
 
   const addressId = qp(request, "addressId");
   let division = qp(request, "division");
@@ -56,8 +104,8 @@ export const GET = handleApi(async (request) => {
   }
 
   const lineItems = cart.items.map((i) => ({
-    lineSubtotal: i.regularPrice,
-    lineTotal: i.unitPrice,
+    lineSubtotal: round2(i.regularPrice * i.quantity),
+    lineTotal: i.lineTotal,
     quantity: i.quantity,
   }));
 

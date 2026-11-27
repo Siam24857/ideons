@@ -401,15 +401,14 @@ export default function ProductDetails({ productDetails }) {
                     alert("This product is out of stock.");
                     return;
                   }
-                  try {
-                    const result = await addToCart({
-                      productId: product._id,
-                      quantity: quantity,
-                    });
-                    if (result.ok) router.push("/checkout");
-                  } catch (err) {
-                    alert("Failed to add product to cart. Please try again.");
+                  const checkoutPath = `/checkout?buyNowProductId=${encodeURIComponent(
+                    product._id
+                  )}&quantity=${quantity}`;
+                  if (!userdata) {
+                    router.push(`/signin?callbackURL=${encodeURIComponent(checkoutPath)}`);
+                    return;
                   }
+                  router.push(checkoutPath);
                 }}
                 disabled={adding || isPending || product.stock <= 0}
                 className="flex-1 relative rounded-lg border border-rose-500 px-5 py-3 font-semibold text-rose-600 bg-rose-50 overflow-hidden transition-all hover:scale-105 group disabled:cursor-not-allowed disabled:opacity-50"

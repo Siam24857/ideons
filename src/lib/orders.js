@@ -23,7 +23,7 @@ async function ensureOrderIndexes(orders) {
     global[ORDER_INDEXES_FLAG] = (async () => {
       await orders.createIndex(
         { orderNumber: 1 },
-        { unique: true, name: "uniq_order_number" }
+        { unique: true }
       );
       await orders.createIndex(
         { userId: 1, idempotencyKey: 1 },
