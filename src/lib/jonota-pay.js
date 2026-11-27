@@ -44,15 +44,37 @@ export function isJonotaPayConfigured() {
   return true;
 }
 
-/** Public store URL used for provider redirects. Never derived from user input. */
+/** Public storefront URL used for provider redirects, never the API server URL. */
 export function getPublicBaseUrl(request) {
-  const configured =
-    process.env.FRONTEND_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_SERVER_URL;
-  const base = configured || request?.nextUrl?.origin || "http://localhost:3000";
-  return String(base).replace(/\/+$/, "");
+  const candidates = [
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.BETTER_AUTH_URL,
+    request?.nextUrl?.origin,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(String(candidate));
+      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) continue;
+      if (
+        process.env.NODE_ENV === "production" &&
+        ["localhost", "127.0.0.1", "::1"].includes(url.hostname)
+      ) {
+        continue;
+      }
+      return url.origin;
+    } catch {
+      continue;
+    }
+  }
+
+  throw new ApiError(
+    "The public storefront URL is not configured for payment redirects.",
+    503,
+    "PUBLIC_APP_URL_NOT_CONFIGURED"
+  );
 }
 
 /** Provider wants the amount without trailing zeros (10.50 -> 10.5). */
@@ -94,10 +116,16 @@ function buildMetadata(order) {
   };
 }
 
-function applyUrlTemplate(template, order) {
+export function getOrderProductReference(order) {
+  const firstItem = order?.items?.[0];
+  return String(firstItem?.slug || firstItem?.productId || "").trim();
+}
+
+function applyUrlTemplate(template, order, productRef = "") {
   return String(template)
     .replace(/\{orderId\}/g, encodeURIComponent(String(order._id)))
-    .replace(/\{orderNumber\}/g, encodeURIComponent(String(order.orderNumber)));
+    .replace(/\{orderNumber\}/g, encodeURIComponent(String(order.orderNumber)))
+    .replace(/\{productRef\}/g, encodeURIComponent(productRef));
 }
 
 function buildProviderUrls(order, baseUrl) {
@@ -108,14 +136,14 @@ function buildProviderUrls(order, baseUrl) {
    * (transactionId, status, ...) and a pre-existing `?` would break parsing. */
   const cancelTemplate =
     process.env.JONOTA_PAY_CANCEL_URL ||
-    `${baseUrl}/payment/cancel/{orderId}`;
+    `${baseUrl}/payment/cancel/{orderId}/{productRef}`;
   const webhookUrl =
     process.env.JONOTA_PAY_WEBHOOK_URL ||
     `${baseUrl}/api/payments/jonota/webhook`;
 
   return {
     successUrl: applyUrlTemplate(successTemplate, order),
-    cancelUrl: applyUrlTemplate(cancelTemplate, order),
+    cancelUrl: applyUrlTemplate(cancelTemplate, order, getOrderProductReference(order)),
     webhookUrl: applyUrlTemplate(webhookUrl, order),
   };
 }

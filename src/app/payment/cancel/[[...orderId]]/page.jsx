@@ -1,35 +1,114 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FiXCircle } from "react-icons/fi";
+import toast from "react-hot-toast";
 import { api, errorMessage } from "@/lib/api-client";
 import { useStore } from "@/components/providers/StoreProvider";
 import { Button, LinkButton, Spinner } from "@/components/ui/Buttons";
 
 /**
  * Shown when the customer cancels on the gateway page (or the gateway sends
- * them back with a cancel_url). Nothing is marked paid here - the order simply
- * stays unpaid/pending and the customer can restart the payment.
+ * them back with a cancel_url). URL status values are never trusted; a
+ * transaction reference, when present, is checked through the server verifier.
  *
- * The order reference is read from the path (`/payment/cancel/{orderId}`) and
- * falls back to the query string, because the gateway appends its own query
- * parameters to the cancel URL.
+ * The gateway callback path carries both the order and product reference;
+ * older URLs can resolve the product from the authenticated order API.
  */
 
 function CancelContent() {
   const routeParams = useParams();
   const searchParams = useSearchParams();
-  const pathOrder = Array.isArray(routeParams?.orderId)
-    ? routeParams.orderId.filter(Boolean).join("/")
-    : routeParams?.orderId;
+  const router = useRouter();
+  const pathSegments = Array.isArray(routeParams?.orderId)
+    ? routeParams.orderId.filter(Boolean)
+    : routeParams?.orderId
+      ? [routeParams.orderId]
+      : [];
+  const pathOrder = pathSegments[0] || "";
+  const pathProduct = pathSegments[1] || "";
   const orderRef =
     pathOrder || searchParams.get("orderId") || searchParams.get("order") || "";
+  const transactionId =
+    searchParams.get("transactionId") ||
+    searchParams.get("transaction_id") ||
+    searchParams.get("txn") ||
+    "";
 
   const { user, authLoading } = useStore();
+  const handledRedirect = useRef("");
   const [restarting, setRestarting] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (authLoading) return undefined;
+    const redirectKey = `${orderRef}:${pathProduct}:${transactionId}`;
+    if (handledRedirect.current === redirectKey) return undefined;
+    handledRedirect.current = redirectKey;
+    let active = true;
+
+    async function returnToProduct() {
+      if (pathProduct) {
+        toast("Payment cancelled. You can try again whenever you're ready.");
+        router.replace(`/products/${encodeURIComponent(pathProduct)}`);
+        if (user && orderRef && transactionId) {
+          api.post("/api/payments/jonota/verify", {
+            orderId: orderRef,
+            transactionId,
+          }).then((verification) => {
+            if (!verification.ok) {
+              console.error(
+                "[jonota] cancellation transaction verification was not applied:",
+                errorMessage(verification)
+              );
+            }
+          }).catch((verificationError) => {
+            console.error("[jonota] cancellation transaction verification failed:", verificationError);
+          });
+        }
+        return;
+      }
+
+      let order = null;
+      if (user && orderRef) {
+        if (transactionId) {
+          const verification = await api.post("/api/payments/jonota/verify", {
+            orderId: orderRef,
+            transactionId,
+          });
+          if (verification.ok) order = verification.data.order;
+        }
+
+        if (!order) {
+          const result = await api.get(`/api/orders/${encodeURIComponent(orderRef)}`);
+          if (result.ok) order = result.data.order;
+        }
+      }
+
+      if (!active) return;
+      const productRef =
+        pathProduct || order?.items?.[0]?.slug || order?.items?.[0]?.productId;
+      toast("Payment cancelled. You can try again whenever you're ready.");
+      router.replace(
+        productRef ? `/products/${encodeURIComponent(String(productRef))}` : "/products"
+      );
+    }
+
+    returnToProduct().catch((redirectError) => {
+      console.error("[jonota] could not resolve product after payment cancellation:", redirectError);
+      if (!active) return;
+      toast("Payment cancelled. You can try again whenever you're ready.");
+      router.replace(
+        pathProduct ? `/products/${encodeURIComponent(pathProduct)}` : "/products"
+      );
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, orderRef, pathProduct, transactionId, user, router]);
 
   const handleRetry = async () => {
     if (!orderRef) return;

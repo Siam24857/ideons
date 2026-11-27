@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   findJonotaOrder,
   getPublicBaseUrl,
+  getOrderProductReference,
   isJonotaPayConfigured,
   recordJonotaVerification,
   recordUnconfirmedTransaction,
@@ -53,6 +54,7 @@ export async function GET(request, ctx) {
   const transactionId = firstParam(searchParams, TX_KEYS);
 
   let order = null;
+  let verifiedFailure = false;
   try {
     order = await findJonotaOrder({
       orderId: orderRef || undefined,
@@ -66,6 +68,7 @@ export async function GET(request, ctx) {
     let verification = null;
     try {
       verification = await verifyJonotaTransaction(transactionId);
+      verifiedFailure = verification.status === "FAILED";
       await recordJonotaVerification({
         order,
         verification,
@@ -111,6 +114,14 @@ export async function GET(request, ctx) {
         }
       }
     }
+  }
+
+  if (order && verifiedFailure) {
+    const productRef = getOrderProductReference(order);
+    const target = new URL(
+      `${base}/payment/cancel/${encodeURIComponent(String(order._id))}/${encodeURIComponent(productRef)}`
+    );
+    return NextResponse.redirect(target, { status: 303 });
   }
 
   const target = new URL(`${base}/payment/${order ? "success" : "verify"}`);

@@ -30,8 +30,12 @@ with `npm run dev`, then open `http://localhost:3000`.
 Configure `.env` with `MONGODB_URI`, `MONGODB_DB`, `BETTER_AUTH_SECRET`, and
 `BETTER_AUTH_URL`. For bKash checkout through the existing Jonota Pay
 integration, set the server-only `JONOTA_PAY_API_KEY` and keep callback URLs
-pointed at this application. Orders are marked paid only after server-side
-gateway verification.
+pointed at this application. Set `FRONTEND_URL` (or `NEXT_PUBLIC_APP_URL`) to
+the public storefront origin when the app is behind a proxy; do not use
+`NEXT_PUBLIC_SERVER_URL`, which is the API server address. The default cancel
+URL carries the order and product reference; a custom `JONOTA_PAY_CANCEL_URL`
+may use `{orderId}`, `{orderNumber}`, and `{productRef}` placeholders. Orders
+are marked paid only after server-side gateway verification.
 
 Production commands:
 
